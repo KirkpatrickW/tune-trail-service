@@ -1,8 +1,9 @@
-import httpx
 from fastapi import APIRouter, HTTPException, Depends
 from models.bounds import Bounds
 from urllib.parse import urlencode
 import logging
+
+from http_client import get_client
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,32 +29,31 @@ async def get_localities(bounds: Bounds = Depends()):
     url = f"{OVERPASS_API_URL}?{query}"
     logger.info(f"Beginning to fetch data from Overpass API: {url}")
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, timeout=30.0)
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail="Error fetching localities")
-        
-        data = response.json()
-        logger.info(f"Raw data received from Overpass API: {len(data.get("elements", []))} entries found")
+    response = await get_client().get(url, timeout=30.0)
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Error fetching localities")
+    
+    data = response.json()
+    logger.info(f"Raw data received from Overpass API: {len(data.get("elements", []))} entries found")
 
-        extracted_point_features = [
-            {
-                "type": "Feature",
-                "properties": {
-                    "id": element["id"],
-                    "name": element["tags"]["name"]
-                },
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [element["lon"], element["lat"]],
-                }
+    extracted_point_features = [
+        {
+            "type": "Feature",
+            "properties": {
+                "id": element["id"],
+                "name": element["tags"]["name"]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [element["lon"], element["lat"]],
             }
-            for element in data.get("elements", [])
-            if "tags" in element and "name" in element["tags"]
-        ]
-        logger.info(f"Extracted point features: {extracted_point_features}")
+        }
+        for element in data.get("elements", [])
+        if "tags" in element and "name" in element["tags"]
+    ]
+    logger.info(f"Extracted point features: {extracted_point_features}")
 
-        return extracted_point_features
+    return extracted_point_features
     
 
 @localities_router.get("/{id}")
