@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from decorators.handle_client_disconnect import handle_client_disconnect
-import services.spotify as spotify_service
-import services.deezer as deezer_service
+import services.spotify_service as spotify_service
+import services.deezer_service as deezer_service
 
 tracks_router = APIRouter()
 

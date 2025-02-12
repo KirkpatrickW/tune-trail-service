@@ -82,6 +82,11 @@ LOGGING_CONFIG = {
             'handlers': ['default'],
             'propagate': False,
         },
+        'azure': {
+            'level': 'CRITICAL',
+            'handlers': ['default'],
+            'propagate': False,
+        },
     },
 }
 

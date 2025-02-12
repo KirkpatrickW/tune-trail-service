@@ -11,6 +11,7 @@ Before setting up and running the project, make sure you have the following tool
    ```bash
    python -m pip install --upgrade pip
    ```
+- **Azure CLI**: The Azure CLI is required to interact with Azure resources. If you haven't already, install it from the [official Azure CLI installation guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 
 ## Setup Instructions
 
@@ -57,7 +58,17 @@ Run the following command to install the dependencies:
 pip install -r requirements.txt
 ```
 
-### 4. Running the Application
+### 4. Azure Login (Required for Azure Resources)
+
+Before running the application, you must authenticate with Azure to access the necessary resources. Run the following command to log in to your Azure account:
+
+```bash
+az login
+```
+
+This will open a browser window where you can log in with your Azure credentials. Ensure that you have the necessary permissions to access the Azure resources (e.g., PostgreSQL databases) for the project.
+
+### 5. Running the Application
 
 To run the program, you can use the following command:
 
@@ -73,7 +84,7 @@ python3 ./app/main.py
 
 This will start the FastAPI server, and you can access the service at `http://127.0.0.1:8000/` (or another specified port).
 
-### 5. Optional: Running with `uvicorn` (for better performance and reloading)
+### 6. Optional: Running with `uvicorn` (for better performance and reloading)
 
 You can also run the application using `uvicorn`, which provides better performance and automatically reloads the server during development. To run with `uvicorn`, use the following command:
 
