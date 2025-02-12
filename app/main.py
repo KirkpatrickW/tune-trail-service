@@ -1,58 +1,49 @@
 import logging.config
-import uuid
-from contextlib import asynccontextmanager
-
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from uvicorn.supervisors.statreload import StatReload
 
-from config.logger import LOGGING_CONFIG, logger, correlation_id_ctx
+from config.logger import LOGGING_CONFIG
 from http_client import client
+from middleware.correlation_id import CorrelationIdMiddleware
 from routes.localities import localities_router
 from routes.tracks import tracks_router
+from lifecycle.lifespan_manager import create_lifespan
+from lifecycle.reload_with_flag_handler import reload_with_flag_handler
+from services.postgresql_server_manager import PostgreSQLServerManager
 
 logging.config.dictConfig(LOGGING_CONFIG)
+StatReload.run = reload_with_flag_handler
 
+def on_reload_startup():
+    return
 
-class CorrelationIdMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
-        correlation_id_ctx.set(correlation_id)
+def on_startup():
+    PostgreSQLServerManager().start_server()
 
-        # The need to manually save `is_disconnected` arises due to a bug in Starlette where `request.is_disconnected()` 
-        # may not update correctly during asynchronous tasks. By saving it to `request.state.is_disconnected`, we ensure 
-        # its value is consistently available throughout the request lifecycle, even when the connection state changes.
-        request.state.is_disconnected = request.is_disconnected
-
-        logger.info(f"Request received: {request.method} {request.url}")
-        response = await call_next(request)
-
-        response.headers["X-Correlation-ID"] = correlation_id
-
-        return response
-
-
-origins = ["*"]
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    yield
+async def on_reload_shutdown():
     await client.aclose()
 
+def on_shutdown():
+    on_reload_shutdown()
+    PostgreSQLServerManager().stop_server()
 
-app = FastAPI(lifespan=lifespan)
-
-app.add_middleware(CorrelationIdMiddleware)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
+lifespan = create_lifespan(
+    on_startup=on_startup,
+    on_reload_shutdown=on_reload_shutdown,
+    on_shutdown=on_shutdown
 )
 
+app = FastAPI(lifespan=lifespan)
+app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(localities_router, prefix="/localities")
 app.include_router(tracks_router, prefix="/tracks")
 
