@@ -4,6 +4,14 @@ import time
 
 correlation_id_ctx = contextvars.ContextVar("correlation_id", default=None)
 
+class Logger:
+    _logger = None
+
+    def __new__(cls):
+        if cls._logger is None:
+            cls._logger = logging.getLogger("uvicorn")
+        return cls._logger
+
 class LoggingFormatter(logging.Formatter):
     fmt = '[%(asctime)s] [%(correlation_id)s] - %(levelname)s :: %(message)s'
     datefmt = '%Y-%m-%d %H:%M:%S'
@@ -87,7 +95,10 @@ LOGGING_CONFIG = {
             'handlers': ['default'],
             'propagate': False,
         },
+        'alembic.runtime.migration': {
+            'level': 'INFO',
+            'handlers': ['default'],
+            'propagate': False,
+        },
     },
 }
-
-logger = logging.getLogger("uvicorn")

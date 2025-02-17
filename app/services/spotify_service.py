@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from http_client import get_client
+from clients.http_client import HTTPClient
 from utils.http_helpers import RetryConfig, handle_retry
 import asyncio
 import time
@@ -22,12 +22,14 @@ retry_config = RetryConfig(
     retry_after_fallback=30,
 )
 
+http_client = HTTPClient()
+
 async def fetch_token():
     async with token_lock:
         if token["access_token"] and time.time() < token["expires_at"]:
             return token["access_token"]
 
-        response = await get_client().post(
+        response = await http_client.post(
             TOKEN_URL, 
             auth=(CLIENT_ID, CLIENT_SECRET), 
             data={"grant_type": "client_credentials"}

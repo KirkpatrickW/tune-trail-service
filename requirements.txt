@@ -4,3 +4,8 @@ pydantic
 httpx
 azure-mgmt-rdbms
 azure-identity
+sqlalchemy
+geoalchemy2
+asyncpg
+alembic
+psycopg2

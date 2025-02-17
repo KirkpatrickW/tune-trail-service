@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-from config.logger import logger
+from config.logger import Logger
 import inspect
+
+logger = Logger()
 
 RELOADING_FLAG_PATH = Path("reloading.flag")
 
