@@ -12,15 +12,15 @@ def upgrade():
 
     CREATE TABLE IF NOT EXISTS tracks (
         track_id SERIAL PRIMARY KEY,
-        isrc VARCHAR(50) UNIQUE,
-        spotify_id VARCHAR(255) UNIQUE,
-        deezer_id VARCHAR(255) UNIQUE,
+        isrc VARCHAR(50) UNIQUE NOT NULL,
+        spotify_id VARCHAR(255) UNIQUE NOT NULL,
+        deezer_id INTEGER UNIQUE NOT NULL CHECK (deezer_id > 0),
         name VARCHAR(255) NOT NULL,
-        artists TEXT NOT NULL,
-        cover_small VARCHAR(255),
-        cover_medium VARCHAR(255),
-        cover_large VARCHAR(255) NOT NULL,
-        preview_url VARCHAR(255) NOT NULL,
+        artists TEXT[] NOT NULL CHECK (array_length(artists, 1) > 0),
+        cover_small TEXT,
+        cover_medium TEXT,
+        cover_large TEXT NOT NULL,
+        preview_url TEXT NOT NULL,
         CONSTRAINT unique_identifiers UNIQUE (isrc, spotify_id, deezer_id)
     );
 

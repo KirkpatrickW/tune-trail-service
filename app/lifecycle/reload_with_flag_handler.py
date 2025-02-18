@@ -16,7 +16,7 @@ def reload_with_flag_handler(self):
     for changes in self:
         if changes:
             logger.warning(
-                "%s detected changes in %s. Reloading... TEST",
+                "%s detected changes in %s. Reloading...",
                 self.reloader_name,
                 ", ".join(_display_path(path) for path in changes),
             )

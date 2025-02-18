@@ -31,7 +31,7 @@ async def search_tracks(request: Request, q: str, offset: int = 0):
             covers = track.get("album", {}).get("images", [])
             data.append({
                 "spotify_id": track.get("id"),
-                "deezer_id": str(deezer_response.get("id")),
+                "deezer_id": deezer_response.get("id"),
                 "isrc": isrc,
                 "name": track.get("name"),
                 "artists": [artist["name"] for artist in track.get("artists", [])],

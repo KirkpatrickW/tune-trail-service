@@ -31,7 +31,7 @@ class PostgreSQLClient:
         self._db_password = "COM668PostgreSQL!"
 
         self._database_url = (
-            f"postgresql+asyncpg://{self._db_user}:{self._db_password}@{self._db_host}:{self._db_port}/{self._db_name}?sslmode=require"
+            f"postgresql+asyncpg://{self._db_user}:{self._db_password}@{self._db_host}:{self._db_port}/{self._db_name}?ssl=require"
         )
 
         logger.info(f"Initialising Azure PostgreSQL client for {self._db_host}...")
@@ -71,6 +71,14 @@ class PostgreSQLClient:
 
 
     async def get_or_create_track(self, session: AsyncSession, track_data: dict):
+        cover_data = track_data.get("cover", {})
+        track_data["cover_small"] = str(cover_data.get("small"))
+        track_data["cover_medium"] = str(cover_data.get("medium"))
+        track_data["cover_large"] = str(cover_data.get("large"))
+        track_data["preview_url"] = str(track_data["preview_url"])
+
+        track_data.pop("cover", None)
+
         stmt = select(Track).where(Track.isrc == track_data["isrc"])
         result = await session.execute(stmt)
         track = result.scalars().first()
