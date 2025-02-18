@@ -6,10 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.logger import Logger
 from clients.postgresql_client import PostgreSQLClient
 from clients.http_client import HTTPClient
-from models.schemas.locality_track_request import TrackLocalityRequest
-from models.bounds import Bounds
-
-from sqlalchemy.exc import IntegrityError
+from models.schemas.locality_track_request import LocalityTrackRequest
+from models.schemas.bounds_request import BoundsRequest
 
 logger = Logger()
 http_client = HTTPClient()
@@ -19,20 +17,26 @@ OVERPASS_API_URL = "https://overpass-api.de/api/interpreter"
 localities_router = APIRouter()
 postgresql_client = PostgreSQLClient()
 
-@localities_router.get("/")
-async def get_localities(bounds: Bounds = Depends()):
+@localities_router.get("")
+async def get_localities(bounds_request: BoundsRequest = Depends(), session: AsyncSession = Depends(postgresql_client.get_session)):
+    async with session.begin():
+        localities = await postgresql_client.get_localities(session, **bounds_request.model_dump())
+    
+    locality_ids = {locality['locality_id'] for locality in localities}
+
     query = urlencode({
         'data': f"""
             [out:json];
             (
-                node["place"="city"]({bounds.south}, {bounds.west}, {bounds.north}, {bounds.east});
-                node["place"="town"]({bounds.south}, {bounds.west}, {bounds.north}, {bounds.east});
-                node["place"="village"]({bounds.south}, {bounds.west}, {bounds.north}, {bounds.east});
-                node["place"="hamlet"]({bounds.south}, {bounds.west}, {bounds.north}, {bounds.east});
+                node["place"="city"]({bounds_request.south}, {bounds_request.west}, {bounds_request.north}, {bounds_request.east});
+                node["place"="town"]({bounds_request.south}, {bounds_request.west}, {bounds_request.north}, {bounds_request.east});
+                node["place"="village"]({bounds_request.south}, {bounds_request.west}, {bounds_request.north}, {bounds_request.east});
+                node["place"="hamlet"]({bounds_request.south}, {bounds_request.west}, {bounds_request.north}, {bounds_request.east});
             );
             out;
         """
     })
+
     url = f"{OVERPASS_API_URL}?{query}"
     logger.info(f"Beginning to fetch data from Overpass API: {url}")
 
@@ -41,56 +45,53 @@ async def get_localities(bounds: Bounds = Depends()):
         raise HTTPException(status_code=500, detail="Error fetching localities")
     
     data = response.json()
-    logger.info(f"Raw data received from Overpass API: {len(data.get("elements", []))} entries found")
+    logger.info(f"Raw data received from Overpass API: {len(data.get('elements', []))} entries found")
+
+    overpass_localities = [
+        {
+            "locality_id": element["id"],
+            "name": element["tags"].get("name", ""),
+            "latitude": element["lat"],
+            "longitude": element["lon"],
+            "track_count": 0
+        }
+        for element in data.get("elements", [])
+        if "tags" in element and "name" in element["tags"] and element["id"] not in locality_ids
+    ]
+
+    combined_localities = localities + overpass_localities
 
     extracted_point_features = [
         {
             "type": "Feature",
             "properties": {
-                "id": element["id"],
-                "name": element["tags"]["name"]
+                "id": locality["locality_id"],
+                "name": locality["name"],
+                "track_count": locality["track_count"]
             },
             "geometry": {
                 "type": "Point",
-                "coordinates": [element["lon"], element["lat"]],
+                "coordinates": [locality["longitude"], locality["latitude"]],
             }
         }
-        for element in data.get("elements", [])
-        if "tags" in element and "name" in element["tags"]
+        for locality in combined_localities
     ]
+
     logger.info(f"Extracted point features: {extracted_point_features}")
 
     return extracted_point_features
 
 
-@localities_router.get("/{id}")
-async def get_locality(id: int):
-    query = urlencode({
-        'data': f"""
-            [out:json];
-            node({id});
-            out body;
-        """
-    })
-    url = f"{OVERPASS_API_URL}?{query}"
-    logger.info(f"Fetching data for specific locality with ID {id} from Overpass API: {url}")
-
-
 @localities_router.put("/tracks")
-async def add_track_to_locality(payload: TrackLocalityRequest, session: AsyncSession = Depends(postgresql_client.get_session)):
-    try:
-        async with session.begin():
-            locality = await postgresql_client.get_or_create_locality(session, **payload.locality.model_dump())
-            track = await postgresql_client.get_or_create_track(session, payload.track.model_dump())
+async def add_track_to_locality(locality_track_request: LocalityTrackRequest, session: AsyncSession = Depends(postgresql_client.get_session)):
+    async with session.begin():
+        locality = await postgresql_client.get_or_create_locality(session, **locality_track_request.locality.model_dump())
+        track = await postgresql_client.get_or_create_track(session, locality_track_request.track.model_dump())
 
-            await postgresql_client.link_track_to_locality(session, locality.locality_id, track.track_id)
+        await postgresql_client.link_track_to_locality(session, locality.locality_id, track.track_id)
 
-        return {
-            "message": "Track successfully added to locality.",
-            "locality": locality.name,
-            "track": track.name,
-        }
-    except IntegrityError as e:
-        raise HTTPException(status_code=400, detail=f"Integrity error: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+    return {
+        "message": "Track successfully added to locality.",
+        "locality": locality.name,
+        "track": track.name,
+    }

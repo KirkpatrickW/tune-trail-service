@@ -12,7 +12,7 @@ class Locality(Base):
     longitude = Column(Float, nullable=False)
     geog = Column(
         Geography(geometry_type='POINT', srid=4326),
-        Computed("ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)", persisted=True),
+        Computed("ST_SetSRID(ST_MakePoint(latitude, longitude), 4326)", persisted=True),
         comment="Generated from coordinates"
     )
 

@@ -100,5 +100,10 @@ LOGGING_CONFIG = {
             'handlers': ['default'],
             'propagate': False,
         },
+        'sqlalchemy': {
+            'level': 'CRITICAL',
+            'handlers': ['default'],
+            'propagate': False,
+        },
     },
 }

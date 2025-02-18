@@ -1,10 +1,13 @@
+from fastapi import HTTPException
 from alembic.config import Config
 from alembic import command
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
+from geoalchemy2 import functions as geo_functions, Geography
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, aliased
 from sqlalchemy.future import select
+from sqlalchemy import func
 
 from config.logger import Logger
 from models.postgresql.locality import Locality
@@ -57,8 +60,11 @@ class PostgreSQLClient:
         
 
     async def get_session(self):
-        async with self._SessionLocal() as session:
-            yield session
+        try:
+            async with self._SessionLocal() as session:
+                yield session
+        except SQLAlchemyError as e:
+            raise HTTPException(status_code=500, detail=f"Database error occurred: {str(e)}")
 
 
     async def get_or_create_locality(self, session: AsyncSession, locality_id: int, name: str, latitude: float, longitude: float):
@@ -95,8 +101,7 @@ class PostgreSQLClient:
     async def link_track_to_locality(self, session: AsyncSession, locality_id: int, track_id: int):
         stmt = select(LocalityTrack).where(
             (LocalityTrack.locality_id == locality_id) &
-            (LocalityTrack.track_id == track_id)
-        )
+            (LocalityTrack.track_id == track_id))
         result = await session.execute(stmt)
         link = result.scalars().first()
 
@@ -104,3 +109,27 @@ class PostgreSQLClient:
             new_link = LocalityTrack(locality_id=locality_id, track_id=track_id)
             session.add(new_link)
             await session.flush()
+
+
+    async def get_localities(self, session: AsyncSession, north: float, east: float, south: float, west: float):
+        bbox = geo_functions.ST_MakeEnvelope(west, south, east, north, 4326).cast(Geography)
+
+        track_count = select(func.count(LocalityTrack.track_id))\
+            .where(LocalityTrack.locality_id == Locality.locality_id)\
+            .correlate(Locality)\
+            .scalar_subquery()
+        
+        stmt = select(
+                Locality,
+                track_count.label('track_count'))\
+            .where(geo_functions.ST_Intersects(Locality.geog, bbox))
+
+        result = await session.execute(stmt)
+        localities = result.all()
+        return [
+            {
+                **locality.__dict__,
+                "track_count": track_count
+            }
+            for locality, track_count in localities
+        ]

@@ -30,7 +30,7 @@ def upgrade():
         latitude DOUBLE PRECISION NOT NULL CHECK (latitude BETWEEN -90 AND 90),
         longitude DOUBLE PRECISION NOT NULL CHECK (longitude BETWEEN -180 AND 180),
         geog GEOGRAPHY(Point, 4326) GENERATED ALWAYS AS (
-            ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
+            ST_SetSRID(ST_MakePoint(latitude, longitude), 4326)
         ) STORED
     );
 
@@ -41,6 +41,8 @@ def upgrade():
         track_id INTEGER REFERENCES tracks(track_id) ON DELETE CASCADE,
         PRIMARY KEY (locality_id, track_id)
     );
+
+    CREATE INDEX IF NOT EXISTS ix_locality_tracks_locality_id ON locality_tracks (locality_id);
     """
     op.execute(text(sql))
 
