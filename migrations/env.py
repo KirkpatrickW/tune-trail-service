@@ -1,8 +1,3 @@
-import logging.config
-from app.config.logger import LOGGING_CONFIG
-
-logging.config.dictConfig(LOGGING_CONFIG)
-
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
