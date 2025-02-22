@@ -1,7 +1,9 @@
 import asyncio
-from config.logger import logger
+from config.logger import Logger
 from functools import wraps
 from fastapi import Request
+
+logger = Logger()
 
 async def disconnect_poller(request: Request):
     while not await request.state.is_disconnected():

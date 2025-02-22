@@ -2,7 +2,9 @@ import uuid
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from config.logger import logger, correlation_id_ctx
+from config.logger import Logger, correlation_id_ctx
+
+logger = Logger()
 
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):

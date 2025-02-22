@@ -3,9 +3,10 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.supervisors.statreload import StatReload
+from clients.postgresql_client import PostgreSQLClient
 
 from config.logger import LOGGING_CONFIG
-from http_client import client
+from clients.http_client import HTTPClient
 from middleware.correlation_id import CorrelationIdMiddleware
 from routes.localities import localities_router
 from routes.tracks import tracks_router
@@ -17,19 +18,21 @@ logging.config.dictConfig(LOGGING_CONFIG)
 StatReload.run = reload_with_flag_handler
 
 def on_reload_startup():
-    return
+    PostgreSQLClient().run_migrations()
 
 def on_startup():
     PostgreSQLServerManager().start_server()
+    on_reload_startup()
 
 async def on_reload_shutdown():
-    await client.aclose()
+    await HTTPClient().aclose()
 
 def on_shutdown():
     on_reload_shutdown()
     PostgreSQLServerManager().stop_server()
 
 lifespan = create_lifespan(
+    on_reload_startup=on_reload_startup,
     on_startup=on_startup,
     on_reload_shutdown=on_reload_shutdown,
     on_shutdown=on_shutdown

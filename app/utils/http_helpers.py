@@ -1,10 +1,10 @@
 from dataclasses import dataclass
-from fastapi import HTTPException, Request
-from http_client import get_client
+from fastapi import HTTPException
+from clients.http_client import HTTPClient
 from httpx import HTTPStatusError
 import asyncio
 
-from config.logger import logger
+http_client = HTTPClient()
 
 @dataclass
 class RetryConfig:
@@ -26,7 +26,7 @@ async def handle_retry(retry_config: RetryConfig, url: str, params: dict = None,
         await retry_config.rate_limit_event.wait()
 
         try:
-            response = await get_client().get(url, params=params, headers=headers)
+            response = await http_client.get(url, params=params, headers=headers)
             response.raise_for_status()
 
             response_json = response.json()
