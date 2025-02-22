@@ -82,6 +82,24 @@ async def get_localities(bounds_request: BoundsRequest = Depends(), session: Asy
     return extracted_point_features
 
 
+@localities_router.get("/{locality_id}/tracks")
+async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depends(postgresql_client.get_session)):
+    async with session.begin():
+        tracks = await postgresql_client.get_tracks_in_locality(session, locality_id)
+
+    return [
+        {
+            **{k: v for k, v in track.__dict__.items() if k not in {"cover_small", "cover_medium", "cover_large"}},
+            "cover": {
+                "small": track.cover_small,
+                "medium": track.cover_medium,
+                "large": track.cover_large
+            }
+        }
+        for track in tracks
+    ]
+
+
 @localities_router.put("/tracks")
 async def add_track_to_locality(locality_track_request: LocalityTrackRequest, session: AsyncSession = Depends(postgresql_client.get_session)):
     async with session.begin():
@@ -91,7 +109,6 @@ async def add_track_to_locality(locality_track_request: LocalityTrackRequest, se
         await postgresql_client.link_track_to_locality(session, locality.locality_id, track.track_id)
 
     return {
-        "message": "Track successfully added to locality.",
-        "locality": locality.name,
-        "track": track.name,
+        "locality": locality,
+        "track": track,
     }

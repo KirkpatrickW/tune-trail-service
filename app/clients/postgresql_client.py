@@ -133,3 +133,11 @@ class PostgreSQLClient:
             }
             for locality, track_count in localities
         ]
+    
+    async def get_tracks_in_locality(self, session: AsyncSession, locality_id: int):
+        stmt = select(Track)\
+            .join(LocalityTrack, Track.track_id == LocalityTrack.track_id)\
+            .where(LocalityTrack.locality_id == locality_id)
+        
+        result = await session.execute(stmt)
+        return result.scalars().all()

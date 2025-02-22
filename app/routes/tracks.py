@@ -46,7 +46,7 @@ async def search_tracks(request: Request, q: str, offset: int = 0):
         return {
             "next_offset": spotify_offset + offset + search_limit,
             "total_matching_results": spotify_response.get("total", 0),
-            "data": data
+            "results": data
         }
 
     except Exception as e:
