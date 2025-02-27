@@ -6,6 +6,13 @@ import asyncio
 
 http_client = HTTPClient()
 
+METHODS = {
+    'GET': 'get',
+    'POST': 'post',
+    'PUT': 'put',
+    'DELETE': 'delete',
+}
+
 @dataclass
 class RetryConfig:
     rate_limit_event: asyncio.Event
@@ -21,12 +28,20 @@ async def handle_rate_limit(rate_limit_event: asyncio.Event, retry_after: int):
         rate_limit_event.set()
 
 
-async def handle_retry(retry_config: RetryConfig, url: str, params: dict = None, headers: dict = None):
+async def handle_retry(retry_config: RetryConfig, method: str, url: str, params: dict = None, headers: dict = None, auth: tuple = None, data: dict = None):
+    method = method.upper()
+    method_function = METHODS.get(method)
+    if not method_function:
+        raise HTTPException(status_code=400, detail="Unsupported HTTP method")
+
+    if method == 'GET' and data is not None:
+        raise HTTPException(status_code=400, detail="GET requests cannot have a body")
+
     for _ in range(retry_config.max_retries):
         await retry_config.rate_limit_event.wait()
 
         try:
-            response = await http_client.get(url, params=params, headers=headers)
+            response = await method_function(url, params=params, headers=headers, auth=auth, data=data)
             response.raise_for_status()
 
             response_json = response.json()

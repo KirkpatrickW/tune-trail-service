@@ -4,10 +4,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.logger import Logger
-from clients.postgresql_client import PostgreSQLClient
 from clients.http_client import HTTPClient
-from models.schemas.locality_track_request import LocalityTrackRequest
-from models.schemas.bounds_request import BoundsRequest
+from clients.postgresql_client import PostgreSQLClient
+from models.schemas.localities.bounds_params import BoundsParams
+from models.schemas.localities.locality_track_request import LocalityTrackRequest
+from services.postgresql.locality_service import LocalityService
 
 logger = Logger()
 http_client = HTTPClient()
@@ -16,11 +17,12 @@ OVERPASS_API_URL = "https://overpass-api.de/api/interpreter"
 
 localities_router = APIRouter()
 postgresql_client = PostgreSQLClient()
+locality_service = LocalityService()
 
 @localities_router.get("")
-async def get_localities(bounds_request: BoundsRequest = Depends(), session: AsyncSession = Depends(postgresql_client.get_session)):
+async def get_localities(bounds_params: BoundsParams = Depends(), session: AsyncSession = Depends(postgresql_client.get_session)):
     async with session.begin():
-        localities = await postgresql_client.get_localities(session, **bounds_request.model_dump())
+        localities = await locality_service.get_localities(session, **bounds_params.model_dump())
     
     locality_ids = {locality['locality_id'] for locality in localities}
 
@@ -28,10 +30,10 @@ async def get_localities(bounds_request: BoundsRequest = Depends(), session: Asy
         'data': f"""
             [out:json];
             (
-                node["place"="city"]({bounds_request.south}, {bounds_request.west}, {bounds_request.north}, {bounds_request.east});
-                node["place"="town"]({bounds_request.south}, {bounds_request.west}, {bounds_request.north}, {bounds_request.east});
-                node["place"="village"]({bounds_request.south}, {bounds_request.west}, {bounds_request.north}, {bounds_request.east});
-                node["place"="hamlet"]({bounds_request.south}, {bounds_request.west}, {bounds_request.north}, {bounds_request.east});
+                node["place"="city"]({bounds_params.south}, {bounds_params.west}, {bounds_params.north}, {bounds_params.east});
+                node["place"="town"]({bounds_params.south}, {bounds_params.west}, {bounds_params.north}, {bounds_params.east});
+                node["place"="village"]({bounds_params.south}, {bounds_params.west}, {bounds_params.north}, {bounds_params.east});
+                node["place"="hamlet"]({bounds_params.south}, {bounds_params.west}, {bounds_params.north}, {bounds_params.east});
             );
             out;
         """
@@ -85,7 +87,7 @@ async def get_localities(bounds_request: BoundsRequest = Depends(), session: Asy
 @localities_router.get("/{locality_id}/tracks")
 async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depends(postgresql_client.get_session)):
     async with session.begin():
-        tracks = await postgresql_client.get_tracks_in_locality(session, locality_id)
+        tracks = await locality_service.get_tracks_in_locality(session, locality_id)
 
     return [
         {
@@ -103,10 +105,10 @@ async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depen
 @localities_router.put("/tracks")
 async def add_track_to_locality(locality_track_request: LocalityTrackRequest, session: AsyncSession = Depends(postgresql_client.get_session)):
     async with session.begin():
-        locality = await postgresql_client.get_or_create_locality(session, **locality_track_request.locality.model_dump())
-        track = await postgresql_client.get_or_create_track(session, locality_track_request.track.model_dump())
+        locality = await locality_service.get_or_create_locality(session, **locality_track_request.locality.model_dump())
+        track = await locality_service.get_or_create_track(session, locality_track_request.track.model_dump())
 
-        await postgresql_client.link_track_to_locality(session, locality.locality_id, track.track_id)
+        await locality_service.link_track_to_locality(session, locality.locality_id, track.track_id)
 
     return {
         "locality": locality,
