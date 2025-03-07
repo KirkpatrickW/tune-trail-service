@@ -4,6 +4,7 @@ from decorators.handle_client_disconnect import handle_client_disconnect
 from models.schemas.tracks.search_tracks_params import SearchTracksParams
 from services.providers.deezer_service import DeezerService
 from services.providers.spotify_service import SpotifyService
+from fastapi import Request
 
 spotify_service = SpotifyService()
 deezer_service = DeezerService()
@@ -12,7 +13,7 @@ tracks_router = APIRouter()
 
 @tracks_router.get("/search")
 @handle_client_disconnect
-async def search_tracks(search_tracks_params: SearchTracksParams = Depends()):
+async def search_tracks(request: Request, search_tracks_params: SearchTracksParams = Depends()):
     search_limit = 20
     offset = search_tracks_params.offset
 
