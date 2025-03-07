@@ -15,7 +15,7 @@ from dependencies.validate_spotify_account import validate_spotify_account
 
 from models.schemas.auth.complete_spotify_request import CompleteSpotifyRequest
 from models.schemas.auth.register_request import RegisterRequest
-from models.schemas.auth.spotify_oauth_callback_params import SpotifyOAuthCallbackParams, SpotifyOAuthType
+from models.schemas.auth.spotify_oauth_request import SpotifyOAuthRequest
 
 from services.postgresql.user_service import UserService
 from services.postgresql.user_session_service import UserSessionService
@@ -23,7 +23,8 @@ from services.postgresql.user_spotify_oauth_account_service import UserSpotifyOA
 from services.providers.spotify_service import SpotifyService
 
 from utils.jwt_helper import create_access_token, decode_access_token
-from utils.routes.auth_utils import connect_spotify, fetch_or_refresh_spotify_access_token, link_spotify
+from utils.encryption_helper import encrypt_token
+from utils.routes.auth_utils import fetch_or_refresh_spotify_access_token
 
 logger = Logger()
 
@@ -76,26 +77,65 @@ async def login(credentials: HTTPBasicCredentials = Depends(HTTPBasic()), sessio
     return { "access_token": access_token }
 
 
-@auth_router.get("/spotify-oauth-callback")
-async def spotify_oauth_callback(request: Request, spotify_oauth_callback_params: SpotifyOAuthCallbackParams = Depends(), session: AsyncSession = Depends(postgresql_client.get_session)):
-    type = spotify_oauth_callback_params.type
+@auth_router.put("/connect-spotify")
+async def connect_spotify(spotify_oauth_request: SpotifyOAuthRequest, session: AsyncSession = Depends(postgresql_client.get_session)):
+    spotify_oauth_token_details = await spotify_service.fetch_and_handle_oauth_token(spotify_oauth_request.code, spotify_oauth_request.redirect_uri)
+    spotify_user_id, spotify_access_token, spotify_refresh_token, spotify_expires_in_seconds = spotify_oauth_token_details.values()
 
-    base_url = str(request.base_url)
-    path = request.url.path
+    async with session.begin():
+        try:
+            user, user_spotify_oauth_account = await user_spotify_oauth_account_service.add_new_user_with_spotify_oauth_account(
+                session, 
+                spotify_user_id, 
+                encrypt_token(spotify_access_token), 
+                encrypt_token(spotify_refresh_token), 
+                spotify_expires_in_seconds)
+        except HTTPException:
+            user_spotify_oauth_account = await user_spotify_oauth_account_service.get_spotify_oauth_account_by_provider_user_id(session, spotify_user_id)
+            user = await user_service.get_user_by_user_id(session, user_spotify_oauth_account.user_id)
 
-    redirect_uri = base_url.rstrip("/") + path
+            if not user.is_oauth_account:
+                raise HTTPException(status_code=400, detail="This Spotify account is linked to a non-OAuth account")
+            
+            await user_spotify_oauth_account_service.update_oauth_tokens(
+                session,
+                user_id,
+                encrypt_token(spotify_access_token),
+                spotify_expires_in_seconds,
+                encrypt_token(spotify_refresh_token))
+            
+        user_id = user.user_id
+        user_session = await user_session_service.create_user_session(session, user_id)
 
-    if type == SpotifyOAuthType.CONNECT:
-        return await connect_spotify(session, spotify_oauth_callback_params.code, redirect_uri)
-    
-    if type == SpotifyOAuthType.LINK:
-        # Decode the JWT token from state, emulating the logic of the validate_jwt decorator
-        # This is necessary as Spotify only allows state as a passthrough, not the actual JWT token
-        access_token_data = decode_access_token(token_override=spotify_oauth_callback_params.jwt_token)
-        if access_token_data["is_expired"]:
-            raise HTTPException(status_code=401, detail="Token has expired")
+    access_token = create_access_token(user_id, str(user_session.user_session_id), spotify_access_token)
 
-        return await link_spotify(session, spotify_oauth_callback_params.code, redirect_uri, access_token_data["payload"]["user_id"])
+    return { "access_token": access_token }
+
+
+@auth_router.put("/link-spotify", dependencies=[
+    Depends(validate_jwt)
+])
+async def link_spotify(spotify_oauth_request: SpotifyOAuthRequest, session: AsyncSession = Depends(postgresql_client.get_session)):
+    access_token_data = access_token_data_ctx.get()
+    user_id = access_token_data["payload"]["user_id"]
+
+    spotify_oauth_token_details = await spotify_service.fetch_and_handle_oauth_token(spotify_oauth_request.code, spotify_oauth_request.redirect_uri)
+    spotify_user_id, spotify_access_token, spotify_refresh_token, spotify_expires_in_seconds = spotify_oauth_token_details.values()
+
+    async with session.begin():
+        await user_spotify_oauth_account_service.add_spotify_oauth_account_to_existing_user(
+            session,
+            user_id,
+            spotify_user_id,
+            encrypt_token(spotify_access_token),
+            encrypt_token(spotify_refresh_token),
+            spotify_expires_in_seconds)
+        
+        user_session = await user_session_service.create_user_session(session, user_id)
+
+    access_token = create_access_token(user_id, str(user_session.user_session_id), spotify_access_token)
+
+    return { "access_token": access_token }
 
 
 @auth_router.put("/complete-spotify", dependencies=[
