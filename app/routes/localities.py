@@ -79,7 +79,7 @@ async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depen
 
     return [
         {
-            **{k: v for k, v in track.__dict__.items() if k not in {"cover_small", "cover_medium", "cover_large", "spotify_id", "deezer_id", "isrc"}},
+            **{k: v for k, v in track.__dict__.items() if k not in {"cover_small", "cover_medium", "cover_large", "deezer_id", "isrc"}},
             "cover": {
                 "small": track.cover_small,
                 "medium": track.cover_medium,
