@@ -20,7 +20,6 @@ def upgrade():
         cover_small TEXT,
         cover_medium TEXT,
         cover_large TEXT NOT NULL,
-        preview_url TEXT NOT NULL,
         CONSTRAINT unique_identifiers UNIQUE (isrc, spotify_id, deezer_id)
     );
 
