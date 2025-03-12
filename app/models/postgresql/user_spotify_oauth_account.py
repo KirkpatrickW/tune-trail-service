@@ -11,6 +11,7 @@ class UserSpotifyOauthAccount(Base):
     encrypted_access_token = Column(Text)
     encrypted_refresh_token = Column(Text)
     access_token_expires_at = Column(TIMESTAMP(timezone=True))
+    subscription = Column(String(50))
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 

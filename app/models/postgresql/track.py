@@ -14,7 +14,6 @@ class Track(Base):
     cover_small = Column(Text)
     cover_medium = Column(Text)
     cover_large = Column(Text, nullable=False)
-    preview_url = Column(Text, nullable=False)
 
     localities = relationship("Locality", secondary="locality_tracks", back_populates="tracks")
 

@@ -1,17 +1,19 @@
-from fastapi import Security, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timedelta, timezone
 import jwt
+
+from fastapi import Security, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 SECRET_KEY = "tunetrail_secret"
 ALGORITHM = "HS256"
 
-def create_access_token(user_id: str, user_session_id: str, spotify_access_token: str = None):
+def create_access_token(user_id: str, user_session_id: str, is_admin: bool, spotify_access_token: str = None):
     expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     return jwt.encode(
         { 
             "user_id": user_id,
             "user_session_id": user_session_id,
+            "is_admin": is_admin,
             "spotify_access_token": spotify_access_token,
             "exp": expire
         }, 

@@ -1,6 +1,9 @@
-from urllib.parse import quote
-from utils.http_helpers import RetryConfig, handle_retry
 import asyncio
+from urllib.parse import quote
+
+from fastapi import HTTPException
+
+from utils.http_helpers import RetryConfig, handle_retry
 
 ISRC_URL = "https://api.deezer.com/track/isrc:"
 
@@ -12,6 +15,7 @@ class DeezerService:
             cls._instance = super(DeezerService, cls).__new__(cls)
             cls._instance._init()
         return cls._instance
+
 
     def _init(self):
         self.rate_limit_event = asyncio.Event()
@@ -29,9 +33,21 @@ class DeezerService:
             validate_rate_limit_body=validate_rate_limit_body
         )
 
-    async def fetch_track_by_isrc(self, isrc: str):
-        return await handle_retry(
-            self.retry_config, 
-            "GET",
-            f"{ISRC_URL}{quote(isrc)}"
-        )
+
+    async def fetch_deezer_id_by_isrc(self, isrc: str):
+        try:
+            fetch_deezer_id_by_isrc_response = await handle_retry(
+                self.retry_config, 
+                "GET",
+                f"{ISRC_URL}{quote(isrc)}"
+            )
+        except HTTPException as e:
+            if e.status_code == 404:
+                return None
+            raise
+
+        if not fetch_deezer_id_by_isrc_response or "id" not in fetch_deezer_id_by_isrc_response:
+            return None
+
+        deezer_id = fetch_deezer_id_by_isrc_response["id"]
+        return deezer_id

@@ -1,20 +1,23 @@
 import asyncio
 import time
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import HTTPException
 
 from clients.http_client import HTTPClient
 from services.postgresql.user_service import UserService
 from services.postgresql.user_session_service import UserSessionService
 from services.postgresql.user_spotify_oauth_account_service import UserSpotifyOAuthAccountService
+
 from utils.http_helpers import RetryConfig, handle_retry
 
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 SEARCH_URL = "https://api.spotify.com/v1/search"
 PROFILE_URL = "https://api.spotify.com/v1/me"
+TRACK_URL = "https://api.spotify.com/v1/tracks/"
 
 CLIENT_ID = "cbdfa4fd597743bf814729bfd1595f82"
 CLIENT_SECRET = "0c93e6f13ff54d998cfc055ab0f0dcd9"
+REDIRECT_URI = "tune-trail://spotify-auth-callback"
 
 class SpotifyService:
     _instance = None
@@ -72,11 +75,11 @@ class SpotifyService:
             return self.app_token["access_token"]
 
 
-    async def fetch_and_handle_oauth_token(self, session: AsyncSession, auth_code: str, redirect_uri: str):
+    async def fetch_and_handle_oauth_token(self, auth_code: str):
         data = {
             "grant_type": "authorization_code",
             "code": auth_code,
-            "redirect_uri": redirect_uri
+            "redirect_uri": REDIRECT_URI
         }
         auth = (CLIENT_ID, CLIENT_SECRET)
 
@@ -90,27 +93,9 @@ class SpotifyService:
 
         user_profile_response = await self.get_user_profile(oauth_token_response["access_token"])
 
-        provider_user_id = user_profile_response["id"]
-        async with session.begin():
-            user_spotify_oauth_account = await self.user_spotify_oauth_account_service.get_spotify_oauth_account_by_provider_user_id(
-                session, 
-                provider_user_id)
-            
-            if user_spotify_oauth_account:
-                user_id = user_spotify_oauth_account.user_id
-
-                # Invalidate all user sessions because getting a new refresh_token invalidates the previous ones.
-                self.user_session_service.invalidate_all_user_sessions_by_user_id(session, user_id)
-
-                user = await self.user_service.get_user_by_user_id(session, user_id)
-                if not user.is_oauth_account:
-                    # Delete the Spotify OAuth account only if the user is not an OAuth account (unlinking) as this 
-                    # account is integral to users who used Spotify OAuth for registration, oauth tokens will be updated
-                    # in the database upon relogin.
-                    await self.user_spotify_oauth_account_service.delete_spotify_oauth_account_by_user_id(session, user_id)
-
         return {
             "provider_user_id": user_profile_response["id"],
+            "subscription": user_profile_response["product"],
             "access_token": oauth_token_response["access_token"],
             "refresh_token": oauth_token_response["refresh_token"],
             "expires_in_seconds": oauth_token_response["expires_in"]
@@ -124,13 +109,21 @@ class SpotifyService:
         }
         auth = (CLIENT_ID, CLIENT_SECRET)
 
-        return await handle_retry(
+        oauth_token_response = await handle_retry(
             self.retry_config,
             "POST",
             TOKEN_URL,
             data=data,
             auth=auth
         )
+
+        user_profile_response = await self.get_user_profile(oauth_token_response["access_token"])
+
+        return {
+            "access_token": oauth_token_response["access_token"],
+            "expires_in_seconds": oauth_token_response["expires_in"],
+            "subscription": user_profile_response["product"]
+        }
 
 
     async def get_user_profile(self, access_token: str):
@@ -155,3 +148,37 @@ class SpotifyService:
             params=params,
             headers=headers
         )
+    
+
+    async def get_track_by_id(self, track_id: str):
+        app_access_token = await self.fetch_app_access_token()
+        headers = {"Authorization": f"Bearer {app_access_token}"}
+
+        try:
+            get_track_by_id_response = await handle_retry(
+                self.retry_config,
+                "GET",
+                f"{TRACK_URL}{track_id}",
+                headers=headers
+            )
+        except HTTPException as e:
+            if e.status_code == 404:
+                return None
+            raise
+
+        isrc = get_track_by_id_response.get("external_ids", {}).get("isrc")
+        covers = get_track_by_id_response.get("album", {}).get("images", [])
+
+        data = {
+            "spotify_id": get_track_by_id_response.get("id"),
+            "isrc": isrc,
+            "name": get_track_by_id_response.get("name"),
+            "artists": [artist["name"] for artist in get_track_by_id_response.get("artists", [])],
+            "cover": {
+                "small": covers[2]["url"] if len(covers) > 2 else None,
+                "medium": covers[1]["url"] if len(covers) > 1 else None,
+                "large": covers[0]["url"] if len(covers) > 0 else None
+            }
+        }
+
+        return data

@@ -3,16 +3,20 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.supervisors.statreload import StatReload
-from clients.postgresql_client import PostgreSQLClient
 
 from config.logger import LOGGING_CONFIG
 from clients.http_client import HTTPClient
+from clients.postgresql_client import PostgreSQLClient
+
 from middleware.correlation_id import CorrelationIdMiddleware
+
 from routes.auth import auth_router
 from routes.localities import localities_router
 from routes.tracks import tracks_router
+
 from lifecycle.lifespan_manager import create_lifespan
 from lifecycle.reload_with_flag_handler import reload_with_flag_handler
+
 from services.postgresql.postgresql_server_manager import PostgreSQLServerManager
 
 logging.config.dictConfig(LOGGING_CONFIG)

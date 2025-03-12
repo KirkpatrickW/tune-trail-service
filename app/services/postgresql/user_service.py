@@ -4,10 +4,6 @@ from sqlalchemy.future import select
 
 from models.postgresql.user import User
 
-from config.logger import Logger
-
-logger = Logger()
-
 class UserService:
     _instance = None
 
@@ -55,9 +51,12 @@ class UserService:
 
         if not user.is_oauth_account:
             raise HTTPException(status_code=400, detail="Username can only be added to accounts created via Spotify OAuth")
+        
+        existing_user = await self.get_user_by_username(session, username)
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already taken")
 
         user.username = username
-        session.add(user)
 
         await session.flush()
         await session.refresh(user)

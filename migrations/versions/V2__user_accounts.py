@@ -11,6 +11,7 @@ def upgrade():
         username VARCHAR(255) UNIQUE, -- NULL for incomplete profile (needs a username for OAuth accounts)
         hashed_password BYTEA, -- NULL for OAuth-only accounts
         is_oauth_account BOOLEAN NOT NULL,
+        is_admin BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
@@ -22,12 +23,12 @@ def upgrade():
         encrypted_access_token TEXT,
         encrypted_refresh_token TEXT,
         access_token_expires_at TIMESTAMPTZ,
+        subscription VARCHAR(50),
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         UNIQUE (provider_user_id)
     );
 
-    -- Used to generate short-lived JWT tokens (15 mins) to prevent constant lookups 
     CREATE TABLE user_sessions (
         user_session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -36,6 +37,8 @@ def upgrade():
         expires_at TIMESTAMPTZ NOT NULL, 
         is_invalidated BOOLEAN NOT NULL DEFAULT FALSE
     );
+
+    ALTER TABLE locality_tracks ADD COLUMN user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE;
 
     CREATE OR REPLACE FUNCTION update_updated_at_column()
     RETURNS TRIGGER AS $$ 
@@ -70,6 +73,8 @@ def downgrade():
     DROP TRIGGER IF EXISTS trg_update_users_updated_at ON users;
 
     DROP FUNCTION IF EXISTS update_updated_at_column;
+
+    ALTER TABLE locality_tracks DROP COLUMN user_id;
 
     DROP TABLE IF EXISTS user_sessions;
     DROP TABLE IF EXISTS user_spotify_oauth_accounts;
