@@ -1,9 +1,13 @@
-from dataclasses import dataclass
-from fastapi import HTTPException
-from clients.http_client import HTTPClient
-from httpx import HTTPStatusError
 import asyncio
+from dataclasses import dataclass
 
+from fastapi import HTTPException
+from httpx import HTTPStatusError, RemoteProtocolError, ReadTimeout
+
+from clients.http_client import HTTPClient
+from config.logger import Logger
+
+logger = Logger()
 http_client = HTTPClient()
 
 METHODS = {
@@ -32,6 +36,7 @@ class RetryConfig:
 async def handle_rate_limit(rate_limit_event: asyncio.Event, retry_after: int):
     if rate_limit_event.is_set():
         rate_limit_event.clear()
+        logger.warning(f"Hit rate limit event, retrying after {retry_after}s")
         await asyncio.sleep(retry_after)
         rate_limit_event.set()
 
@@ -87,9 +92,17 @@ async def handle_retry(
                 await handle_rate_limit(retry_config.rate_limit_event, retry_after)
                 continue
 
-            raise HTTPException(status_code=e.response.status_code, detail=str(e))
-
+            if e.response.status_code == 504:
+                continue
+        except (ReadTimeout, RemoteProtocolError) as e:
+            continue
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+            if e:
+                logger.error(f"Exception of type {type(e).__name__}: {str(e)}")
+            else:
+                logger.error("An unexpected error occurred without an exception object.")
+
+            status_code = getattr(e, 'response', {}).get('status_code', 500)
+            raise HTTPException(status_code=status_code, detail=str(e))
 
     raise HTTPException(status_code=500, detail="API rate limit exceeded or unexpected error")

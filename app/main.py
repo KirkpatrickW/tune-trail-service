@@ -1,10 +1,14 @@
 import logging.config
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
 from uvicorn.supervisors.statreload import StatReload
 
 from config.logger import LOGGING_CONFIG
+
 from clients.http_client import HTTPClient
 from clients.postgresql_client import PostgreSQLClient
 
@@ -24,6 +28,7 @@ StatReload.run = reload_with_flag_handler
 
 def on_reload_startup():
     PostgreSQLClient().run_migrations()
+    FastAPICache.init(InMemoryBackend())
 
 def on_startup():
     PostgreSQLServerManager().start_server()
@@ -31,6 +36,7 @@ def on_startup():
 
 async def on_reload_shutdown():
     await HTTPClient().aclose()
+    await FastAPICache.clear()
 
 def on_shutdown():
     on_reload_shutdown()

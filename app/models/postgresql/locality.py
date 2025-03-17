@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, CheckConstraint, Index, Computed
+from sqlalchemy import Column, BigInteger, String, Float, CheckConstraint, Index, Computed
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geography
 from .base import Base
@@ -6,7 +6,7 @@ from .base import Base
 class Locality(Base):
     __tablename__ = 'localities'
 
-    locality_id = Column(Integer, primary_key=True)
+    locality_id = Column(BigInteger, primary_key=True)  # Updated to BigInteger
     name = Column(String(255), nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
