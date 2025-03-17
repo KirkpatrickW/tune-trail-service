@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi_cache.decorator import cache
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.logger import Logger
@@ -34,8 +35,8 @@ spotify_service = SpotifyService()
 overpass_service = OverpassService()
 deezer_service = DeezerService()
 
-
 @localities_router.get("")
+@cache(expire=300)
 async def get_localities(bounds_params: BoundsParams = Depends(), session: AsyncSession = Depends(postgresql_client.get_session)):
     async with session.begin():
         localities = await locality_service.get_localities_by_bounds(session, **bounds_params.model_dump())

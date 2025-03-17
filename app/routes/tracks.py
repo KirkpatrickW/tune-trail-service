@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Request
+from fastapi_cache.decorator import cache
 
 from decorators.handle_client_disconnect import handle_client_disconnect
 from models.schemas.tracks.search_tracks_params import SearchTracksParams
 from services.providers.deezer_service import DeezerService
 from services.providers.spotify_service import SpotifyService
-from fastapi import Request
 
 spotify_service = SpotifyService()
 deezer_service = DeezerService()
@@ -13,6 +13,7 @@ tracks_router = APIRouter()
 
 @tracks_router.get("/search")
 @handle_client_disconnect
+@cache(expire=300)
 async def search_tracks(request: Request, search_tracks_params: SearchTracksParams = Depends()):
     search_limit = 20
     offset = search_tracks_params.offset
