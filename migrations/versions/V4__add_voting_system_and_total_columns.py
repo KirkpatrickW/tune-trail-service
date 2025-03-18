@@ -32,15 +32,24 @@ def upgrade():
 
     CREATE OR REPLACE FUNCTION update_total_votes()
     RETURNS TRIGGER AS $$
+    DECLARE
+        target_id INTEGER;
     BEGIN
+        -- Use OLD for DELETE, NEW otherwise
+        IF (TG_OP = 'DELETE') THEN
+            target_id = OLD.locality_track_id;
+        ELSE
+            target_id = NEW.locality_track_id;
+        END IF;
+
         UPDATE locality_tracks 
         SET total_votes = (
-            SELECT COUNT(*) FROM locality_track_votes 
-            WHERE locality_track_id = NEW.locality_track_id
+            SELECT COALESCE(SUM(vote), 0) FROM locality_track_votes 
+            WHERE locality_track_id = target_id
         )
-        WHERE locality_tracks.locality_id = NEW.locality_track_id;
-        
-        RETURN NEW;
+        WHERE locality_track_id = target_id;
+
+        RETURN NULL; -- No need to return a value in AFTER trigger
     END;
     $$ LANGUAGE plpgsql;
 
@@ -62,15 +71,23 @@ def upgrade():
 
     CREATE OR REPLACE FUNCTION update_total_tracks()
     RETURNS TRIGGER AS $$
+    DECLARE
+        target_id INTEGER;
     BEGIN
+        IF (TG_OP = 'DELETE') THEN
+            target_id = OLD.locality_id;
+        ELSE
+            target_id = NEW.locality_id;
+        END IF;
+
         UPDATE localities 
         SET total_tracks = (
             SELECT COUNT(*) FROM locality_tracks 
-            WHERE locality_id = NEW.locality_id
+            WHERE locality_id = target_id
         )
-        WHERE localities.locality_id = NEW.locality_id;
-        
-        RETURN NEW;
+        WHERE locality_id = target_id;
+
+        RETURN NULL; -- No need to return a value in AFTER trigger
     END;
     $$ LANGUAGE plpgsql;
 

@@ -21,8 +21,6 @@ class LocalityService:
         stmt = select(Locality).where(Locality.locality_id == locality_id)
         result = await session.execute(stmt)
         locality = result.scalars().first()
-
-        session.expunge_all()
         
         return locality
     
@@ -37,7 +35,6 @@ class LocalityService:
 
         await session.flush()
         await session.refresh(locality)
-        session.expunge_all()
 
         return locality
 
@@ -48,7 +45,5 @@ class LocalityService:
         stmt = select(Locality).where(geo_functions.ST_Intersects(Locality.geog, bbox))
         result = await session.execute(stmt)
         localities = result.scalars().all()
-
-        session.expunge_all()
 
         return localities

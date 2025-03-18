@@ -32,8 +32,6 @@ class UserSpotifyOAuthAccountService:
         result = await session.execute(stmt)
         oauth_account = result.scalars().first()
 
-        session.expunge_all()
-
         return oauth_account
     
 
@@ -41,8 +39,6 @@ class UserSpotifyOAuthAccountService:
         stmt = select(UserSpotifyOauthAccount).where(UserSpotifyOauthAccount.provider_user_id == provider_user_id)
         result = await session.execute(stmt)
         oauth_account = result.scalars().first()
-
-        session.expunge_all()
 
         return oauth_account
 
@@ -65,7 +61,6 @@ class UserSpotifyOAuthAccountService:
 
         await session.flush()
         await session.refresh(oauth_account)
-        session.expunge_all()
 
         return user, oauth_account
     
@@ -96,7 +91,6 @@ class UserSpotifyOAuthAccountService:
 
         await session.flush()
         await session.refresh(oauth_account)
-        session.expunge_all()
 
         return oauth_account
     
@@ -115,7 +109,6 @@ class UserSpotifyOAuthAccountService:
 
         await session.flush()
         await session.refresh(user_spotify_oauth_account)
-        session.expunge_all()
 
         return user_spotify_oauth_account
     
@@ -128,6 +121,5 @@ class UserSpotifyOAuthAccountService:
         await session.delete(user_spotify_oauth_account)
 
         await session.flush()
-        session.expunge_all()
 
         return

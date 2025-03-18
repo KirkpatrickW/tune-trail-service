@@ -12,16 +12,22 @@ from models.schemas.localities.bounds_params import BoundsParams
 from services.postgresql.locality_service import LocalityService
 from services.postgresql.locality_track_service import LocalityTrackService
 from services.postgresql.track_service import TrackService
+from services.postgresql.locality_track_vote_service import LocalityTrackVoteService
 
 from services.providers.deezer_service import DeezerService
 from services.providers.overpass_service import OverpassService
 from services.providers.spotify_service import SpotifyService
+
+from config.logger import Logger
+
+logger = Logger()
 
 localities_router = APIRouter()
 postgresql_client = PostgreSQLClient()
 locality_service = LocalityService()
 track_service = TrackService()
 locality_track_service = LocalityTrackService()
+locality_track_vote_service = LocalityTrackVoteService()
 
 spotify_service = SpotifyService()
 overpass_service = OverpassService()
@@ -72,6 +78,14 @@ async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depen
     async with session.begin():
         tracks = await track_service.get_tracks_in_locality(session, locality_id)
 
+        locality_track_votes = []
+        access_token_data = access_token_data_ctx.get()
+        if access_token_data:
+            user_id = access_token_data["payload"]["user_id"]
+            locality_track_votes = await locality_track_vote_service.get_all_locality_track_votes_by_user_id_and_locality_id(session, locality_id, user_id)
+
+    vote_dict = {locality_track_vote.locality_track_id: locality_track_vote.vote for locality_track_vote in locality_track_votes}
+
     return [
         {
             **{k: v for k, v in track.__dict__.items() if k not in {"cover_small", "cover_medium", "cover_large", "deezer_id", "isrc"}},
@@ -79,7 +93,8 @@ async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depen
                 "small": track.cover_small,
                 "medium": track.cover_medium,
                 "large": track.cover_large
-            }
+            },
+            "user_vote": vote_dict.get(track.locality_track_id, 0)
         }
         for track in tracks
     ]

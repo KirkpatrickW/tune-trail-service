@@ -18,8 +18,6 @@ class UserService:
         result = await session.execute(stmt)
         user = result.scalars().first()
 
-        session.expunge_all()
-
         return user
 
 
@@ -27,8 +25,6 @@ class UserService:
         stmt = select(User).where(User.user_id == user_id)
         result = await session.execute(stmt)
         user = result.scalars().first()
-
-        session.expunge_all()
 
         return user
     
@@ -43,7 +39,6 @@ class UserService:
 
         await session.flush()
         await session.refresh(user)
-        session.expunge_all()
 
         return user
     
@@ -67,6 +62,5 @@ class UserService:
 
         await session.flush()
         await session.refresh(user)
-        session.expunge_all()
 
         return user

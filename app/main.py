@@ -13,10 +13,10 @@ from clients.http_client import HTTPClient
 from clients.postgresql_client import PostgreSQLClient
 
 from middleware.correlation_id import CorrelationIdMiddleware
-from middleware.exception_logging import ExceptionLoggingMiddleware
 
 from routes.auth import auth_router
 from routes.localities import localities_router
+from routes.locality_tracks import locality_tracks_router
 from routes.tracks import tracks_router
 
 from lifecycle.lifespan_manager import create_lifespan
@@ -51,7 +51,6 @@ lifespan = create_lifespan(
 )
 
 app = FastAPI(lifespan=lifespan)
-app.add_middleware(ExceptionLoggingMiddleware)
 app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -62,6 +61,7 @@ app.add_middleware(
 )
 app.include_router(auth_router, prefix="/auth")
 app.include_router(localities_router, prefix="/localities")
+app.include_router(locality_tracks_router, prefix="/locality-tracks")
 app.include_router(tracks_router, prefix="/tracks")
 
 if __name__ == "__main__":

@@ -20,8 +20,6 @@ class TrackService:
         result = await session.execute(stmt)
         track = result.scalars().first()
 
-        session.expunge_all()
-
         return track
 
 
@@ -29,8 +27,6 @@ class TrackService:
         stmt = select(Track).where(Track.spotify_id == spotify_id)
         result = await session.execute(stmt)
         track = result.scalars().first()
-
-        session.expunge_all()
 
         return track
     
@@ -53,23 +49,21 @@ class TrackService:
 
         await session.flush()
         await session.refresh(track)
-        session.expunge_all()
 
         return track
 
 
     async def get_tracks_in_locality(self, session: AsyncSession, locality_id: int):
-        stmt = select(Track, User.username, User.user_id, LocalityTrack.total_votes) \
+        stmt = select(Track, User.username, User.user_id, LocalityTrack.total_votes, LocalityTrack.locality_track_id) \
             .join(LocalityTrack, Track.track_id == LocalityTrack.track_id) \
             .join(User, LocalityTrack.user_id == User.user_id) \
             .where(LocalityTrack.locality_id == locality_id) \
             .order_by(LocalityTrack.total_votes.desc())
         result = await session.execute(stmt)
 
-        session.expunge_all()
-
         attributed_tracks = []
-        for track, username, user_id, total_votes in result.all():
+        for track, username, user_id, total_votes, locality_track_id in result.all():
+            track.locality_track_id = locality_track_id
             track.username = username
             track.user_id = user_id
             track.total_votes = total_votes

@@ -80,9 +80,9 @@ async def login(credentials: HTTPBasicCredentials = Depends(HTTPBasic()), sessio
 
         user_id = user.user_id
         user_session = await user_session_service.create_user_session(session, user_id)
+        spotify_access_token, spotify_subscription = await fetch_or_refresh_spotify_access_token_details(session, user_id)
 
     is_admin = user.is_admin
-    spotify_access_token, spotify_subscription = await fetch_or_refresh_spotify_access_token_details(session, user_id)
     access_token = create_access_token(user_id, str(user_session.user_session_id), is_admin, spotify_access_token)
 
     return { 
@@ -231,31 +231,36 @@ async def logout(session: AsyncSession = Depends(postgresql_client.get_session))
     return { "message": "Logged out successfully" }
 
 
+# TODO: This looks like it is raising a 500 somewhere
 @auth_router.put("/refresh-token")
 async def refresh_token(access_token_data: dict = Depends(decode_access_token), session: AsyncSession = Depends(postgresql_client.get_session)):
-    if not access_token_data["is_expired"]:
-        raise HTTPException(status_code=400, detail="Token is still valid, refresh not needed")
-    
-    async with session.begin():
-        access_token = access_token_data["payload"]
-        user_session_id = access_token["user_session_id"]
-        user_id = access_token["user_id"]
-        user_session = await user_session_service.get_user_session_by_id(session, user_session_id)
-
-        if not user_session or user_session.is_invalidated:
-            raise HTTPException(status_code=401, detail="Invalid session")
+    try:
+        if not access_token_data["is_expired"]:
+            raise HTTPException(status_code=400, detail="Token is still valid, refresh not needed")
         
-        if user_session.expires_at <= datetime.now(timezone.utc):
-            await user_session_service.invalidate_user_session(session, user_session_id)
-            raise HTTPException(status_code=401, detail="Session expired")
-        
-        spotify_access_token, spotify_subscription = await fetch_or_refresh_spotify_access_token_details(session, user_id)
-        new_access_token = create_access_token(user_id, user_session_id, access_token["is_admin"], spotify_access_token)
-        await user_session_service.refresh_user_session_expiry(session, user_session_id)
+        async with session.begin():
+            access_token = access_token_data["payload"]
+            user_session_id = access_token["user_session_id"]
+            user_id = access_token["user_id"]
+            user_session = await user_session_service.get_user_session_by_id(session, user_session_id)
 
-    return { 
-        "access_token": new_access_token,
-        "user_details": {
-            "spotify_subscription": spotify_subscription
+            if not user_session or user_session.is_invalidated:
+                raise HTTPException(status_code=401, detail="Invalid session")
+            
+            if user_session.expires_at <= datetime.now(timezone.utc):
+                await user_session_service.invalidate_user_session(session, user_session_id)
+                raise HTTPException(status_code=401, detail="Session expired")
+            
+            spotify_access_token, spotify_subscription = await fetch_or_refresh_spotify_access_token_details(session, user_id)
+            new_access_token = create_access_token(user_id, user_session_id, access_token["is_admin"], spotify_access_token)
+            await user_session_service.refresh_user_session_expiry(session, user_session_id)
+
+        return { 
+            "access_token": new_access_token,
+            "user_details": {
+                "spotify_subscription": spotify_subscription
+            }
         }
-    }
+    except Exception as e:
+        logger.error(e)
+        raise e

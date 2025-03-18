@@ -26,8 +26,6 @@ class UserSessionService:
         result = await session.execute(stmt)
         user_session = result.scalars().first()
 
-        session.expunge_all()
-
         return user_session
     
 
@@ -42,7 +40,6 @@ class UserSessionService:
 
         await session.flush()
         await session.refresh(user_session)
-        session.expunge_all()
 
         return user_session
     
@@ -56,7 +53,6 @@ class UserSessionService:
 
         await session.flush()
         await session.refresh(user_session)
-        session.expunge_all()
 
         return user_session
     
@@ -70,7 +66,6 @@ class UserSessionService:
 
         await session.flush()
         await session.refresh(user_session)
-        session.expunge_all()
 
         return user_session
     
@@ -84,6 +79,5 @@ class UserSessionService:
             user_session.is_invalidated = True
 
         await session.flush()
-        session.expunge_all()
 
         return user_sessions

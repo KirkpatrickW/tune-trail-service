@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from models.schemas.locality_tracks.vote_on_locality_track_request import VoteValueEnum
-from models.postgresql import LocalityTrackVote
+from models.postgresql import LocalityTrackVote, LocalityTrack
 
 from services.postgresql.locality_track_service import LocalityTrackService
 from services.postgresql.user_service import UserService
@@ -28,9 +28,17 @@ class LocalityTrackVoteService:
         result = await session.execute(stmt)
         locality_track_vote = result.scalars().first()
 
-        session.expunge_all()
-
         return locality_track_vote
+
+
+    async def get_all_locality_track_votes_by_user_id_and_locality_id(self, session: AsyncSession, locality_id: int, user_id: int):
+        stmt = select(LocalityTrackVote) \
+            .join(LocalityTrack, LocalityTrackVote.locality_track_id == LocalityTrack.locality_track_id) \
+            .filter(LocalityTrack.locality_id == locality_id, LocalityTrackVote.user_id == user_id)
+        result = await session.execute(stmt)
+        locality_track_votes = result.scalars().all()
+
+        return locality_track_votes
 
 
     async def vote_locality_track(self, session: AsyncSession, locality_track_id: int, user_id: int, vote_value: VoteValueEnum):
@@ -46,7 +54,7 @@ class LocalityTrackVoteService:
             raise HTTPException(status_code=404, detail="User not found")
         
 
-        locality_track_vote = await self.get_locality_track_vote_by_user_id_and_locality_track_id(session, user_id, locality_track_id)
+        locality_track_vote = await self.get_locality_track_vote_by_user_id_and_locality_track_id(session, locality_track_id, user_id)
         if locality_track_vote:
             locality_track_vote.vote = vote_value.value
         else:
@@ -59,19 +67,16 @@ class LocalityTrackVoteService:
         await session.flush()
         await session.refresh(locality_track_vote)
 
-        session.expunge_all()
-
         return locality_track_vote
     
 
     async def unvote_locality_track(self, session: AsyncSession, locality_track_id: int, user_id: int):
-        locality_track_vote = await self.get_locality_track_vote_by_user_id_and_locality_track_id(session, user_id, locality_track_id)
+        locality_track_vote = await self.get_locality_track_vote_by_user_id_and_locality_track_id(session, locality_track_id, user_id)
         if not locality_track_vote:
             raise HTTPException(status_code=404, detail="Vote on track in locality not found for this user")
 
         await session.delete(locality_track_vote)
 
         await session.flush()
-        session.expunge_all()
         
         return

@@ -4,11 +4,8 @@ import contextvars
 
 access_token_data_ctx = contextvars.ContextVar("access_token_data", default=None)
 
-async def validate_jwt_allow_unauthenticated():
-    async def dependency(request: Request):
-        return await validate_jwt(request, allow_unauthenticated=True)
-    
-    return dependency
+async def validate_jwt_allow_unauthenticated(request: Request):
+    return await validate_jwt(request, allow_unauthenticated=True)
 
 
 async def validate_jwt(request: Request, allow_unauthenticated: bool = False):
