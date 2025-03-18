@@ -5,8 +5,13 @@ from .base import Base
 class LocalityTrack(Base):
     __tablename__ = 'locality_tracks'
 
-    locality_id = Column(BigInteger, ForeignKey('localities.locality_id', ondelete='CASCADE'), primary_key=True)
-    track_id = Column(Integer, ForeignKey('tracks.track_id', ondelete='CASCADE'), primary_key=True)
+    locality_track_id = Column(Integer, primary_key=True, autoincrement=True)
+    locality_id = Column(BigInteger, ForeignKey('localities.locality_id', ondelete='CASCADE'), nullable=False)
+    track_id = Column(Integer, ForeignKey('tracks.track_id', ondelete='CASCADE'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
+    
+    total_votes = Column(Integer, nullable=False, default=0)
 
+    locality = relationship("Locality", back_populates="tracks")
+    track = relationship("Track", back_populates="localities")
     user = relationship("User", back_populates="locality_tracks")

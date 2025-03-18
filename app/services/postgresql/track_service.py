@@ -52,17 +52,19 @@ class TrackService:
 
 
     async def get_tracks_in_locality(self, session: AsyncSession, locality_id: int):
-        stmt = select(Track, User.username, User.user_id)\
-            .join(LocalityTrack, Track.track_id == LocalityTrack.track_id)\
-            .join(User, LocalityTrack.user_id == User.user_id)\
-            .where(LocalityTrack.locality_id == locality_id)
+        stmt = select(Track, User.username, User.user_id, LocalityTrack.total_votes) \
+            .join(LocalityTrack, Track.track_id == LocalityTrack.track_id) \
+            .join(User, LocalityTrack.user_id == User.user_id) \
+            .where(LocalityTrack.locality_id == locality_id) \
+            .order_by(LocalityTrack.total_votes.desc())
         
         result = await session.execute(stmt)
-        tracks_with_user_info = []
-        
-        for track, username, user_id in result.all():
+        attributed_tracks = []
+
+        for track, username, user_id, total_votes in result.all():
             track.username = username
             track.user_id = user_id
-            tracks_with_user_info.append(track)
-        
-        return tracks_with_user_info
+            track.total_votes = total_votes
+            attributed_tracks.append(track)
+
+        return attributed_tracks

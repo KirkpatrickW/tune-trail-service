@@ -2,9 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi_cache.decorator import cache
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.logger import Logger
-
-from clients.http_client import HTTPClient
 from clients.postgresql_client import PostgreSQLClient
 
 from dependencies.validate_jwt import access_token_data_ctx, validate_jwt
@@ -19,11 +16,6 @@ from services.postgresql.track_service import TrackService
 from services.providers.deezer_service import DeezerService
 from services.providers.overpass_service import OverpassService
 from services.providers.spotify_service import SpotifyService
-
-logger = Logger()
-http_client = HTTPClient()
-
-OVERPASS_API_URL = "https://overpass-api.de/api/interpreter"
 
 localities_router = APIRouter()
 postgresql_client = PostgreSQLClient()
@@ -46,7 +38,7 @@ async def get_localities(bounds_params: BoundsParams = Depends(), session: Async
     filtered_overpass_localities = [
         {
             **locality,
-            "track_count": 0
+            "total_tracks": 0
         }
         for locality in overpass_localities
         if locality["locality_id"] not in locality_ids
@@ -60,7 +52,7 @@ async def get_localities(bounds_params: BoundsParams = Depends(), session: Async
             "properties": {
                 "id": locality["locality_id"],
                 "name": locality["name"],
-                "track_count": locality["track_count"]
+                "total_tracks": locality["total_tracks"]
             },
             "geometry": {
                 "type": "Point",

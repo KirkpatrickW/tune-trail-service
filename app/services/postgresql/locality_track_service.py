@@ -25,6 +25,13 @@ class LocalityTrackService:
         self.track_service = TrackService()
 
 
+    async def get_locality_track_by_locality_track_id(self, session: AsyncSession, locality_track_id: int):
+        stmt = select(LocalityTrackService).where(LocalityTrack.locality_track_id == locality_track_id)
+        result = await session.execute(stmt)
+        locality_track = result.scalars().first()
+        return locality_track
+
+
     async def add_track_to_locality(self, session: AsyncSession, locality_id: int, track_id: int, user_id: int):
         locality = await self.locality_service.get_locality_by_locality_id(session, locality_id)
         if not locality:

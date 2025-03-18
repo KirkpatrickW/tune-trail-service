@@ -42,22 +42,7 @@ class LocalityService:
     async def get_localities_by_bounds(self, session: AsyncSession, north: float, east: float, south: float, west: float):
         bbox = geo_functions.ST_MakeEnvelope(west, south, east, north, 4326).cast(Geography)
 
-        track_count = select(func.count(LocalityTrack.track_id))\
-            .where(LocalityTrack.locality_id == Locality.locality_id)\
-            .correlate(Locality)\
-            .scalar_subquery()
-        
-        stmt = select(
-                Locality,
-                track_count.label('track_count'))\
-            .where(geo_functions.ST_Intersects(Locality.geog, bbox))
-
+        stmt = select(Locality).where(geo_functions.ST_Intersects(Locality.geog, bbox))
         result = await session.execute(stmt)
         localities = result.all()
-        return [
-            {
-                **locality.__dict__,
-                "track_count": track_count
-            }
-            for locality, track_count in localities
-        ]
+        return localities

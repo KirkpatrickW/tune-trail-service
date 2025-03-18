@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Float, CheckConstraint, Index, Computed
+from sqlalchemy import Column, BigInteger, String, Float, CheckConstraint, Index, Computed, Integer
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geography
 from .base import Base
@@ -6,7 +6,7 @@ from .base import Base
 class Locality(Base):
     __tablename__ = 'localities'
 
-    locality_id = Column(BigInteger, primary_key=True)  # Updated to BigInteger
+    locality_id = Column(BigInteger, primary_key=True)
     name = Column(String(255), nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
@@ -15,6 +15,8 @@ class Locality(Base):
         Computed("ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)", persisted=True),
         comment="Generated from coordinates"
     )
+
+    total_tracks = Column(Integer, nullable=False, default=0)
 
     tracks = relationship("Track", secondary="locality_tracks", back_populates="localities")
 
