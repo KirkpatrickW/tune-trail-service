@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from models.postgresql.user import User
+from models.postgresql import User
 
 class UserService:
     _instance = None
@@ -17,6 +17,9 @@ class UserService:
         stmt = select(User).where(User.username == username)
         result = await session.execute(stmt)
         user = result.scalars().first()
+
+        session.expunge_all()
+
         return user
 
 
@@ -24,6 +27,9 @@ class UserService:
         stmt = select(User).where(User.user_id == user_id)
         result = await session.execute(stmt)
         user = result.scalars().first()
+
+        session.expunge_all()
+
         return user
     
 
@@ -37,6 +43,7 @@ class UserService:
 
         await session.flush()
         await session.refresh(user)
+        session.expunge_all()
 
         return user
     
@@ -60,5 +67,6 @@ class UserService:
 
         await session.flush()
         await session.refresh(user)
+        session.expunge_all()
 
         return user

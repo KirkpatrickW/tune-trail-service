@@ -18,7 +18,7 @@ class Locality(Base):
 
     total_tracks = Column(Integer, nullable=False, default=0)
 
-    tracks = relationship("Track", secondary="locality_tracks", back_populates="localities")
+    tracks = relationship("LocalityTrack", back_populates="locality")
 
     __table_args__ = (
         CheckConstraint('latitude BETWEEN -90 AND 90'),

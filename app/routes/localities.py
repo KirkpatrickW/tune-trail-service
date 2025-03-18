@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from clients.postgresql_client import PostgreSQLClient
 
-from dependencies.validate_jwt import access_token_data_ctx, validate_jwt
+from dependencies.validate_jwt import access_token_data_ctx, validate_jwt, validate_jwt_allow_unauthenticated
 
 from models.schemas.localities.add_track_to_locality_request import AddTrackToLocalityRequest
 from models.schemas.localities.bounds_params import BoundsParams
@@ -34,7 +34,7 @@ async def get_localities(bounds_params: BoundsParams = Depends(), session: Async
         localities = await locality_service.get_localities_by_bounds(session, **bounds_params.model_dump())
         overpass_localities = await overpass_service.get_localities_by_bounds(**bounds_params.model_dump())
 
-    locality_ids = {locality['locality_id'] for locality in localities}
+    locality_ids = {locality.locality_id for locality in localities}
     filtered_overpass_localities = [
         {
             **locality,
@@ -44,7 +44,7 @@ async def get_localities(bounds_params: BoundsParams = Depends(), session: Async
         if locality["locality_id"] not in locality_ids
     ]
 
-    combined_localities = localities + filtered_overpass_localities
+    combined_localities = [{**vars(locality)} for locality in localities] + filtered_overpass_localities
 
     extracted_point_features = [
         {
@@ -65,7 +65,9 @@ async def get_localities(bounds_params: BoundsParams = Depends(), session: Async
     return extracted_point_features
 
 
-@localities_router.get("/{locality_id}/tracks")
+@localities_router.get("/{locality_id}/tracks", dependencies=[
+    Depends(validate_jwt_allow_unauthenticated)
+])
 async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depends(postgresql_client.get_session)):
     async with session.begin():
         tracks = await track_service.get_tracks_in_locality(session, locality_id)

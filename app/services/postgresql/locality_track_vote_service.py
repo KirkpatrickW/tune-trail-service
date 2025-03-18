@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from models.schemas.locality_tracks.vote_on_locality_track_request import VoteValueEnum
-from models.postgresql.locality_track_vote import LocalityTrackVote
+from models.postgresql import LocalityTrackVote
 
 from services.postgresql.locality_track_service import LocalityTrackService
 from services.postgresql.user_service import UserService
@@ -26,8 +26,11 @@ class LocalityTrackVoteService:
     async def get_locality_track_vote_by_user_id_and_locality_track_id(self, session: AsyncSession, locality_track_id: int, user_id: int):
         stmt = select(LocalityTrackVote).filter_by(user_id=user_id, locality_track_id=locality_track_id)
         result = await session.execute(stmt)
-        vote = result.scalars().first()
-        return vote
+        locality_track_vote = result.scalars().first()
+
+        session.expunge_all()
+
+        return locality_track_vote
 
 
     async def vote_locality_track(self, session: AsyncSession, locality_track_id: int, user_id: int, vote_value: VoteValueEnum):
@@ -56,6 +59,8 @@ class LocalityTrackVoteService:
         await session.flush()
         await session.refresh(locality_track_vote)
 
+        session.expunge_all()
+
         return locality_track_vote
     
 
@@ -67,5 +72,6 @@ class LocalityTrackVoteService:
         await session.delete(locality_track_vote)
 
         await session.flush()
-
+        session.expunge_all()
+        
         return

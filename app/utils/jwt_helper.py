@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta, timezone
 import jwt
 
-from fastapi import Security, HTTPException
+from fastapi import Security, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 SECRET_KEY = "tunetrail_secret"
 ALGORITHM = "HS256"
+
+http_bearer = HTTPBearer(auto_error=False)
 
 def create_access_token(user_id: str, user_session_id: str, is_admin: bool, spotify_access_token: str = None):
     expire = datetime.now(timezone.utc) + timedelta(minutes=15)
@@ -21,11 +23,12 @@ def create_access_token(user_id: str, user_session_id: str, is_admin: bool, spot
         algorithm=ALGORITHM)
 
 
-def decode_access_token(authorization: HTTPAuthorizationCredentials = Security(HTTPBearer()), token_override: str | None = None):
-    token = token_override if token_override else authorization.credentials
-    if not token:
+async def decode_access_token(request: Request):
+    authorisation: HTTPAuthorizationCredentials = await http_bearer(request)
+    if not authorisation:
         raise HTTPException(status_code=403, detail="Not authenticated")
 
+    token = authorisation.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         is_expired = False

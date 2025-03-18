@@ -8,6 +8,8 @@ def upgrade():
     sql = """
     ALTER TABLE locality_tracks ALTER COLUMN locality_id TYPE BIGINT;
     ALTER TABLE localities ALTER COLUMN locality_id TYPE BIGINT;
+
+    ALTER TABLE tracks ALTER COLUMN deezer_id TYPE BIGINT;
     """
     op.execute(text(sql))
 
@@ -15,5 +17,7 @@ def downgrade():
     sql = """
     ALTER TABLE locality_tracks ALTER COLUMN locality_id TYPE INTEGER;
     ALTER TABLE localities ALTER COLUMN locality_id TYPE INTEGER;
+
+    ALTER TABLE tracks ALTER COLUMN deezer_id TYPE INTEGER;
     """
     op.execute(text(sql))
