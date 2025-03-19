@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from models.postgresql.user_session import UserSession
+from models.postgresql import UserSession
 from services.postgresql.user_service import UserService
 
 class UserSessionService:
@@ -24,7 +24,9 @@ class UserSessionService:
     async def get_user_session_by_id(self, session: AsyncSession, user_session_id: str):
         stmt = select(UserSession).where(UserSession.user_session_id == user_session_id)
         result = await session.execute(stmt)
-        return result.scalars().first()
+        user_session = result.scalars().first()
+
+        return user_session
     
 
     async def create_user_session(self, session: AsyncSession, user_id: int):
@@ -48,6 +50,7 @@ class UserSessionService:
             raise HTTPException(status_code=404, detail="Session not found")
         
         user_session.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
         await session.flush()
         await session.refresh(user_session)
 
@@ -60,6 +63,7 @@ class UserSessionService:
             raise HTTPException(status_code=404, detail="Session not found")
         
         user_session.is_invalidated = True
+
         await session.flush()
         await session.refresh(user_session)
 

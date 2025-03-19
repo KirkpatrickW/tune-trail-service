@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from models.postgresql.locality_track import LocalityTrack
+from models.postgresql import LocalityTrack
 
 from services.postgresql.locality_service import LocalityService
 from services.postgresql.track_service import TrackService
@@ -23,6 +23,14 @@ class LocalityTrackService:
         self.user_service = UserService()
         self.locality_service = LocalityService()
         self.track_service = TrackService()
+
+
+    async def get_locality_track_by_locality_track_id(self, session: AsyncSession, locality_track_id: int):
+        stmt = select(LocalityTrack).where(LocalityTrack.locality_track_id == locality_track_id)
+        result = await session.execute(stmt)
+        locality_track = result.scalars().first()
+        
+        return locality_track
 
 
     async def add_track_to_locality(self, session: AsyncSession, locality_id: int, track_id: int, user_id: int):

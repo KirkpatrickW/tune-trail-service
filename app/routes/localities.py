@@ -2,12 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi_cache.decorator import cache
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.logger import Logger
-
-from clients.http_client import HTTPClient
 from clients.postgresql_client import PostgreSQLClient
 
-from dependencies.validate_jwt import access_token_data_ctx, validate_jwt
+from dependencies.validate_jwt import access_token_data_ctx, validate_jwt, validate_jwt_allow_unauthenticated
 
 from models.schemas.localities.add_track_to_locality_request import AddTrackToLocalityRequest
 from models.schemas.localities.bounds_params import BoundsParams
@@ -15,21 +12,22 @@ from models.schemas.localities.bounds_params import BoundsParams
 from services.postgresql.locality_service import LocalityService
 from services.postgresql.locality_track_service import LocalityTrackService
 from services.postgresql.track_service import TrackService
+from services.postgresql.locality_track_vote_service import LocalityTrackVoteService
 
 from services.providers.deezer_service import DeezerService
 from services.providers.overpass_service import OverpassService
 from services.providers.spotify_service import SpotifyService
 
-logger = Logger()
-http_client = HTTPClient()
+from config.logger import Logger
 
-OVERPASS_API_URL = "https://overpass-api.de/api/interpreter"
+logger = Logger()
 
 localities_router = APIRouter()
 postgresql_client = PostgreSQLClient()
 locality_service = LocalityService()
 track_service = TrackService()
 locality_track_service = LocalityTrackService()
+locality_track_vote_service = LocalityTrackVoteService()
 
 spotify_service = SpotifyService()
 overpass_service = OverpassService()
@@ -42,17 +40,17 @@ async def get_localities(bounds_params: BoundsParams = Depends(), session: Async
         localities = await locality_service.get_localities_by_bounds(session, **bounds_params.model_dump())
         overpass_localities = await overpass_service.get_localities_by_bounds(**bounds_params.model_dump())
 
-    locality_ids = {locality['locality_id'] for locality in localities}
+    locality_ids = {locality.locality_id for locality in localities}
     filtered_overpass_localities = [
         {
             **locality,
-            "track_count": 0
+            "total_tracks": 0
         }
         for locality in overpass_localities
         if locality["locality_id"] not in locality_ids
     ]
 
-    combined_localities = localities + filtered_overpass_localities
+    combined_localities = [{**vars(locality)} for locality in localities] + filtered_overpass_localities
 
     extracted_point_features = [
         {
@@ -60,7 +58,7 @@ async def get_localities(bounds_params: BoundsParams = Depends(), session: Async
             "properties": {
                 "id": locality["locality_id"],
                 "name": locality["name"],
-                "track_count": locality["track_count"]
+                "total_tracks": locality["total_tracks"]
             },
             "geometry": {
                 "type": "Point",
@@ -73,10 +71,20 @@ async def get_localities(bounds_params: BoundsParams = Depends(), session: Async
     return extracted_point_features
 
 
-@localities_router.get("/{locality_id}/tracks")
+@localities_router.get("/{locality_id}/tracks", dependencies=[
+    Depends(validate_jwt_allow_unauthenticated)
+])
 async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depends(postgresql_client.get_session)):
     async with session.begin():
         tracks = await track_service.get_tracks_in_locality(session, locality_id)
+
+        locality_track_votes = []
+        access_token_data = access_token_data_ctx.get()
+        if access_token_data:
+            user_id = access_token_data["payload"]["user_id"]
+            locality_track_votes = await locality_track_vote_service.get_all_locality_track_votes_by_user_id_and_locality_id(session, locality_id, user_id)
+
+    vote_dict = {locality_track_vote.locality_track_id: locality_track_vote.vote for locality_track_vote in locality_track_votes}
 
     return [
         {
@@ -85,7 +93,8 @@ async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depen
                 "small": track.cover_small,
                 "medium": track.cover_medium,
                 "large": track.cover_large
-            }
+            },
+            "user_vote": vote_dict.get(track.locality_track_id, 0)
         }
         for track in tracks
     ]

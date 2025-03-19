@@ -17,6 +17,7 @@ class User(Base):
     user_spotify_oauth_account = relationship("UserSpotifyOauthAccount", back_populates="user", uselist=False)
     user_sessions = relationship("UserSession", back_populates="user")
     locality_tracks = relationship("LocalityTrack", back_populates="user")
+    locality_track_votes = relationship("LocalityTrackVote", back_populates="user")
 
     __table_args__ = (
         UniqueConstraint('username', name='unique_identifiers'),
