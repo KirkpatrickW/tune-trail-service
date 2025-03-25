@@ -51,3 +51,18 @@ class DeezerService:
 
         deezer_id = fetch_deezer_id_by_isrc_response["id"]
         return deezer_id
+    
+
+    async def fetch_preview_url_by_deezer_id(self, deezer_id: int):
+        try:
+            track_info = await handle_retry(
+                self.retry_config,
+                "GET",
+                f"https://api.deezer.com/track/{deezer_id}"
+            )
+        except HTTPException as e:
+            if e.status_code == 404:
+                return None
+            raise
+
+        return track_info.get("preview")

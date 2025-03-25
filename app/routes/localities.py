@@ -6,8 +6,8 @@ from clients.postgresql_client import PostgreSQLClient
 
 from dependencies.validate_jwt import access_token_data_ctx, validate_jwt, validate_jwt_allow_unauthenticated
 
-from models.schemas.localities.add_track_to_locality_request import AddTrackToLocalityRequest
 from models.schemas.localities.bounds_params import BoundsParams
+from models.schemas.localities.user_location_params import UserLocationParams
 
 from services.postgresql.locality_service import LocalityService
 from services.postgresql.locality_track_service import LocalityTrackService
@@ -71,6 +71,33 @@ async def get_localities(bounds_params: BoundsParams = Depends(), session: Async
     return extracted_point_features
 
 
+@localities_router.get("/tracks")
+async def get_tracks_for_localities(user_location_params: UserLocationParams = Depends(), session: AsyncSession = Depends(postgresql_client.get_session)):
+    async with session.begin():
+        tracks_for_localities = await locality_service.get_tracks_for_localities_within_radius(session, user_location_params.latitude, user_location_params.longitude, user_location_params.radius)
+
+    for locality in tracks_for_localities:
+        transformed_tracks = []
+        for track in locality["tracks"]:
+            preview_url = await deezer_service.fetch_preview_url_by_deezer_id(track.deezer_id)
+            if not preview_url:
+                continue
+            
+            transformed_tracks.append({
+                **{k: v for k, v in vars(track).items() if not k.startswith('_') and k not in {"cover_small", "cover_medium", "cover_large", "spotify_id", "deezer_id", "isrc"}},
+                "cover": {
+                    "small": track.cover_small,
+                    "medium": track.cover_medium,
+                    "large": track.cover_large
+                },
+                "preview_url": preview_url
+            })
+
+        locality["tracks"] = transformed_tracks
+
+    return tracks_for_localities
+
+
 @localities_router.get("/{locality_id}/tracks", dependencies=[
     Depends(validate_jwt_allow_unauthenticated)
 ])
@@ -100,12 +127,11 @@ async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depen
     ]
 
 
-@localities_router.put("/tracks", dependencies=[
+@localities_router.put("/{locality_id}/tracks/{spotify_track_id}", dependencies=[
     Depends(validate_jwt)
 ])
-async def add_track_to_locality(add_track_to_locality_request: AddTrackToLocalityRequest, session: AsyncSession = Depends(postgresql_client.get_session)):
+async def add_track_to_locality(locality_id: int, spotify_track_id: str, session: AsyncSession = Depends(postgresql_client.get_session)):
     async with session.begin():
-        locality_id = add_track_to_locality_request.locality_id
         locality = await locality_service.get_locality_by_locality_id(session, locality_id)
         if not locality:
             overpass_locality = await overpass_service.get_locality_by_id(locality_id)
@@ -114,7 +140,6 @@ async def add_track_to_locality(add_track_to_locality_request: AddTrackToLocalit
             
             locality = await locality_service.add_new_locality(session, locality_id, overpass_locality["name"], overpass_locality["latitude"], overpass_locality["longitude"])
 
-        spotify_track_id = add_track_to_locality_request.spotify_track_id
         track = await track_service.get_track_by_spotify_id(session, spotify_track_id)
         if not track:
             spotify_track = await spotify_service.get_track_by_id(spotify_track_id)

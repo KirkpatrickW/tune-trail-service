@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass
 
 from fastapi import HTTPException
-from httpx import HTTPStatusError, RemoteProtocolError, ReadTimeout
+from httpx import HTTPStatusError, RemoteProtocolError, ReadTimeout, ConnectError
 
 from clients.http_client import HTTPClient
 from config.logger import Logger
@@ -94,7 +94,7 @@ async def handle_retry(
 
             if e.response.status_code == 504:
                 continue
-        except (ReadTimeout, RemoteProtocolError) as e:
+        except (ReadTimeout, RemoteProtocolError, ConnectError) as e:
             continue
         except Exception as e:
             if e:
