@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass
 
 from fastapi import HTTPException
-from httpx import HTTPStatusError, RemoteProtocolError, ReadTimeout
+from httpx import HTTPStatusError, RemoteProtocolError, ReadTimeout, ConnectError
 
 from clients.http_client import HTTPClient
 from config.logger import Logger
@@ -94,14 +94,9 @@ async def handle_retry(
 
             if e.response.status_code == 504:
                 continue
-        except (ReadTimeout, RemoteProtocolError) as e:
+        except (ReadTimeout, RemoteProtocolError, ConnectError) as e:
             continue
         except Exception as e:
-            if e:
-                logger.error(f"Exception of type {type(e).__name__}: {str(e)}")
-            else:
-                logger.error("An unexpected error occurred without an exception object.")
-
             status_code = getattr(e, 'response', {}).get('status_code', 500)
             raise HTTPException(status_code=status_code, detail=str(e))
 
