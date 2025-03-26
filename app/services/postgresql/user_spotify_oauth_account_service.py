@@ -52,7 +52,7 @@ class UserSpotifyOAuthAccountService:
         oauth_account = UserSpotifyOauthAccount(
             user_id=user.user_id,
             provider_user_id=provider_user_id,
-            subscription=subscription,
+            subscription=subscription.value,
             encrypted_access_token=encrypted_access_token,
             encrypted_refresh_token=encrypted_refresh_token,
             access_token_expires_at=datetime.now(timezone.utc) + timedelta(seconds=access_token_expires_in_seconds)
@@ -82,7 +82,7 @@ class UserSpotifyOAuthAccountService:
         oauth_account = UserSpotifyOauthAccount(
             user_id=user_id,
             provider_user_id=provider_user_id,
-            subscription=subscription,
+            subscription=subscription.value,
             encrypted_access_token=encrypted_access_token,
             encrypted_refresh_token=encrypted_refresh_token,
             access_token_expires_at=datetime.now(timezone.utc) + timedelta(seconds=access_token_expires_in_seconds)
@@ -100,7 +100,7 @@ class UserSpotifyOAuthAccountService:
         if not user_spotify_oauth_account:
             raise HTTPException(status_code=404, detail="Spotify OAuth account not found for this user")
         
-        user_spotify_oauth_account.subscription = subscription
+        user_spotify_oauth_account.subscription = subscription.value
         user_spotify_oauth_account.encrypted_access_token = encrypted_access_token
         user_spotify_oauth_account.access_token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
         if encrypted_refresh_token:
