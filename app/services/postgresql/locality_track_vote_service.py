@@ -2,7 +2,6 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from models.schemas.locality_tracks.vote_on_locality_track_request import VoteValueEnum
 from models.postgresql import LocalityTrackVote, LocalityTrack
 
 from services.postgresql.locality_track_service import LocalityTrackService
@@ -41,8 +40,8 @@ class LocalityTrackVoteService:
         return locality_track_votes
 
 
-    async def vote_locality_track(self, session: AsyncSession, locality_track_id: int, user_id: int, vote_value: VoteValueEnum):
-        if vote_value.value not in [VoteValueEnum.UPVOTE.value, VoteValueEnum.DOWNVOTE.value]:
+    async def vote_locality_track(self, session: AsyncSession, locality_track_id: int, user_id: int, vote_value: int):
+        if vote_value not in [1, -1]:
             raise HTTPException(status_code=500, detail="Invalid vote value, must be UPVOTE or DOWNVOTE")
 
         locality_track = await self.locality_track_service.get_locality_track_by_locality_track_id(session, locality_track_id)
@@ -55,12 +54,12 @@ class LocalityTrackVoteService:
         
         locality_track_vote = await self.get_locality_track_vote_by_user_id_and_locality_track_id(session, locality_track_id, user_id)
         if locality_track_vote:
-            locality_track_vote.vote = vote_value.value
+            locality_track_vote.vote = vote_value
         else:
             locality_track_vote = LocalityTrackVote(
                 locality_track_id = locality_track_id,
                 user_id = user_id,
-                vote = vote_value.value)
+                vote = vote_value)
             session.add(locality_track_vote)
 
         await session.flush()

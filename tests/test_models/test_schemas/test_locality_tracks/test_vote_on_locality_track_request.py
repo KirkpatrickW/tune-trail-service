@@ -1,10 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.models.schemas.locality_tracks.vote_on_locality_track_request import (
-    VoteOnTrackLocalityRequest,
-    VoteValueEnum
-)
+from app.models.schemas.locality_tracks.vote_on_locality_track_request import VoteOnTrackLocalityRequest
 
 def test_valid_upvote():
     request = VoteOnTrackLocalityRequest(vote_value=1)

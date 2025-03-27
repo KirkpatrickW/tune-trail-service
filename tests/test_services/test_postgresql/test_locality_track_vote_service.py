@@ -2,7 +2,6 @@ import pytest
 from sqlalchemy import select
 
 from app.models.postgresql import LocalityTrack, LocalityTrackVote
-from app.models.schemas.locality_tracks.vote_on_locality_track_request import VoteValueEnum
 from app.services.postgresql.locality_track_vote_service import LocalityTrackVoteService
 from app.services.postgresql.locality_track_service import LocalityTrackService
 from app.services.postgresql.user_service import UserService
@@ -43,10 +42,10 @@ async def test_vote_locality_track(test_session):
     await test_session.flush()
     
     # Test upvoting
-    vote = await service.vote_locality_track(test_session, locality_track.locality_track_id, user.user_id, VoteValueEnum.UPVOTE)
+    vote = await service.vote_locality_track(test_session, locality_track.locality_track_id, user.user_id, 1)
     assert vote.locality_track_id == locality_track.locality_track_id
     assert vote.user_id == user.user_id
-    assert vote.vote == VoteValueEnum.UPVOTE.value
+    assert vote.vote == 1
     
     # Verify vote was saved to database
     result = await test_session.execute(
@@ -55,11 +54,11 @@ async def test_vote_locality_track(test_session):
         .where(LocalityTrackVote.user_id == user.user_id)
     )
     saved_vote = result.scalar_one()
-    assert saved_vote.vote == VoteValueEnum.UPVOTE.value
+    assert saved_vote.vote == 1
     
     # Test downvoting (should update existing vote)
-    vote = await service.vote_locality_track(test_session, locality_track.locality_track_id, user.user_id, VoteValueEnum.DOWNVOTE)
-    assert vote.vote == VoteValueEnum.DOWNVOTE.value
+    vote = await service.vote_locality_track(test_session, locality_track.locality_track_id, user.user_id, -1)
+    assert vote.vote == -1
     
     # Verify vote was updated in database
     result = await test_session.execute(
@@ -69,7 +68,7 @@ async def test_vote_locality_track(test_session):
     )
     saved_vote = result.scalar_one()
     await test_session.refresh(saved_vote)  # Refresh the vote object to get the latest value
-    assert saved_vote.vote == VoteValueEnum.DOWNVOTE.value
+    assert saved_vote.vote == -1
 
 @pytest.mark.asyncio
 async def test_vote_locality_track_invalid_vote(test_session):
@@ -105,7 +104,7 @@ async def test_vote_locality_track_invalid_vote(test_session):
     
     # Test invalid vote value
     with pytest.raises(Exception) as exc_info:
-        await service.vote_locality_track(test_session, locality_track.locality_track_id, user.user_id, VoteValueEnum.UNVOTE)
+        await service.vote_locality_track(test_session, locality_track.locality_track_id, user.user_id, 2)
     assert "Invalid vote value" in str(exc_info.value)
 
 @pytest.mark.asyncio
@@ -118,7 +117,7 @@ async def test_vote_locality_track_non_existent_track(test_session):
     
     # Test voting on non-existent track
     with pytest.raises(Exception) as exc_info:
-        await service.vote_locality_track(test_session, 999, user.user_id, VoteValueEnum.UPVOTE)
+        await service.vote_locality_track(test_session, 999, user.user_id, 1)
     assert "Track in locality not found" in str(exc_info.value)
 
 @pytest.mark.asyncio
@@ -155,7 +154,7 @@ async def test_vote_locality_track_non_existent_user(test_session):
     
     # Test voting with non-existent user
     with pytest.raises(Exception) as exc_info:
-        await service.vote_locality_track(test_session, locality_track.locality_track_id, 999, VoteValueEnum.UPVOTE)
+        await service.vote_locality_track(test_session, locality_track.locality_track_id, 999, 1)
     assert "User not found" in str(exc_info.value)
 
 @pytest.mark.asyncio
@@ -191,7 +190,7 @@ async def test_unvote_locality_track(test_session):
     await test_session.flush()
     
     # Add a vote
-    await service.vote_locality_track(test_session, locality_track.locality_track_id, user.user_id, VoteValueEnum.UPVOTE)
+    await service.vote_locality_track(test_session, locality_track.locality_track_id, user.user_id, 1)
     
     # Test unvoting
     await service.unvote_locality_track(test_session, locality_track.locality_track_id, user.user_id)
@@ -275,13 +274,13 @@ async def test_get_locality_track_vote_by_user_id_and_locality_track_id(test_ses
     await test_session.flush()
     
     # Add a vote
-    await service.vote_locality_track(test_session, locality_track.locality_track_id, user.user_id, VoteValueEnum.UPVOTE)
+    await service.vote_locality_track(test_session, locality_track.locality_track_id, user.user_id, 1)
     
     # Test getting the vote
     vote = await service.get_locality_track_vote_by_user_id_and_locality_track_id(test_session, locality_track.locality_track_id, user.user_id)
     assert vote.locality_track_id == locality_track.locality_track_id
     assert vote.user_id == user.user_id
-    assert vote.vote == VoteValueEnum.UPVOTE.value
+    assert vote.vote == 1
     
     # Test getting non-existent vote
     non_existent_vote = await service.get_locality_track_vote_by_user_id_and_locality_track_id(test_session, locality_track.locality_track_id, 999)
@@ -337,8 +336,8 @@ async def test_get_all_locality_track_votes_by_user_id_and_locality_id(test_sess
     await test_session.flush()
     
     # Add votes
-    await service.vote_locality_track(test_session, locality_track1.locality_track_id, user.user_id, VoteValueEnum.UPVOTE)
-    await service.vote_locality_track(test_session, locality_track2.locality_track_id, user.user_id, VoteValueEnum.DOWNVOTE)
+    await service.vote_locality_track(test_session, locality_track1.locality_track_id, user.user_id, 1)
+    await service.vote_locality_track(test_session, locality_track2.locality_track_id, user.user_id, -1)
     
     # Test getting all votes
     votes = await service.get_all_locality_track_votes_by_user_id_and_locality_id(test_session, locality.locality_id, user.user_id)
@@ -346,10 +345,10 @@ async def test_get_all_locality_track_votes_by_user_id_and_locality_id(test_sess
     
     # Verify vote attributes
     vote1 = next(v for v in votes if v.locality_track_id == locality_track1.locality_track_id)
-    assert vote1.vote == VoteValueEnum.UPVOTE.value
+    assert vote1.vote == 1
     
     vote2 = next(v for v in votes if v.locality_track_id == locality_track2.locality_track_id)
-    assert vote2.vote == VoteValueEnum.DOWNVOTE.value
+    assert vote2.vote == -1
     
     # Test getting votes for non-existent locality
     non_existent_votes = await service.get_all_locality_track_votes_by_user_id_and_locality_id(test_session, 999, user.user_id)
