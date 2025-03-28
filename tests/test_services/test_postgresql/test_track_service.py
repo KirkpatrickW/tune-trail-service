@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy import select
+from fastapi import HTTPException
 
 from app.models.postgresql import Track, LocalityTrack, User
 from app.services.postgresql.track_service import TrackService
@@ -226,5 +227,7 @@ async def test_get_tracks_in_locality(test_session):
     assert tracks[1].user_id == user.user_id
     
     # Test getting tracks for non-existent locality
-    non_existent_tracks = await service.get_tracks_in_locality(test_session, 999)
-    assert len(non_existent_tracks) == 0 
+    with pytest.raises(HTTPException) as exc_info:
+        await service.get_tracks_in_locality(test_session, 999)
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "Locality not found" 

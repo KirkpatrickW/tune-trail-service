@@ -162,7 +162,7 @@ class SpotifyService:
                 headers=headers
             )
         except HTTPException as e:
-            if e.status_code == 404:
+            if e.status_code != 500:
                 return None
             raise
 

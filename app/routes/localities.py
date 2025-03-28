@@ -6,7 +6,6 @@ from clients.postgresql_client import PostgreSQLClient
 
 from dependencies.validate_jwt import access_token_data_ctx, validate_jwt, validate_jwt_allow_unauthenticated
 
-from models.schemas.localities.add_track_to_locality_request import AddTrackToLocalityRequest
 from models.schemas.localities.bounds_params import BoundsParams
 
 from services.postgresql.locality_service import LocalityService
@@ -100,12 +99,11 @@ async def get_tracks_in_locality(locality_id: int, session: AsyncSession = Depen
     ]
 
 
-@localities_router.put("/tracks", dependencies=[
+@localities_router.put("/{locality_id}/tracks/{spotify_track_id}", dependencies=[
     Depends(validate_jwt)
 ])
-async def add_track_to_locality(add_track_to_locality_request: AddTrackToLocalityRequest, session: AsyncSession = Depends(postgresql_client.get_session)):
+async def add_track_to_locality(locality_id: int, spotify_track_id: str, session: AsyncSession = Depends(postgresql_client.get_session)):
     async with session.begin():
-        locality_id = add_track_to_locality_request.locality_id
         locality = await locality_service.get_locality_by_locality_id(session, locality_id)
         if not locality:
             overpass_locality = await overpass_service.get_locality_by_id(locality_id)
@@ -114,7 +112,6 @@ async def add_track_to_locality(add_track_to_locality_request: AddTrackToLocalit
             
             locality = await locality_service.add_new_locality(session, locality_id, overpass_locality["name"], overpass_locality["latitude"], overpass_locality["longitude"])
 
-        spotify_track_id = add_track_to_locality_request.spotify_track_id
         track = await track_service.get_track_by_spotify_id(session, spotify_track_id)
         if not track:
             spotify_track = await spotify_service.get_track_by_id(spotify_track_id)
