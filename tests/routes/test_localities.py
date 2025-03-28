@@ -7,7 +7,6 @@ from fastapi_cache.backends.inmemory import InMemoryBackend
 from app.models.postgresql import User, Locality, Track, LocalityTrack, LocalityTrackVote
 from app.utils.jwt_helper import create_access_token
 from unittest.mock import AsyncMock, patch
-from sqlalchemy import select
 
 
 with patch('app.services.providers.overpass_service.OverpassService') as mock_overpass:
@@ -35,6 +34,14 @@ async def test_client(test_session):
         yield client
 
     app.dependency_overrides.clear()
+
+@pytest.fixture(autouse=True)
+async def cleanup_cache():
+    try:
+        yield
+    finally:
+        from fastapi_cache import FastAPICache
+        await FastAPICache.clear()
 
 @pytest.fixture
 def mock_overpass_service():

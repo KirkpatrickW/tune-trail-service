@@ -1,8 +1,10 @@
 import pytest
 from unittest.mock import AsyncMock, patch
-from fastapi.testclient import TestClient
 from pydantic_core import ValidationError as PydanticCoreValidationError
 from tests.exception_handlers import pydantic_core_validation_exception_handler
+from httpx import AsyncClient, ASGITransport
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
 
 # Patch the services before importing the app
 with patch('app.services.providers.spotify_service.SpotifyService') as mock_spotify:
@@ -44,28 +46,27 @@ def mock_deezer_service():
     deezer_service.fetch_deezer_id_by_isrc = instance.fetch_deezer_id_by_isrc
     yield instance
 
+# FastAPI TestClient with error handler
 @pytest.fixture
-def test_client():
+async def test_client(test_session):
     from app.main import app
-    from fastapi_cache import FastAPICache
-    from fastapi_cache.backends.inmemory import InMemoryBackend
+
     FastAPICache.init(InMemoryBackend())
-
     app.add_exception_handler(PydanticCoreValidationError, pydantic_core_validation_exception_handler)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        yield client
 
-    client = TestClient(app, raise_server_exceptions=False)
-    return client
+    app.dependency_overrides.clear()
 
 @pytest.fixture(autouse=True)
 async def cleanup_cache():
     try:
         yield
     finally:
-        from fastapi_cache import FastAPICache
         await FastAPICache.clear()
 
-def test_search_tracks_success(test_client, mock_spotify_service, mock_deezer_service):
-    response = test_client.get("/tracks/search?q=test&offset=0")
+async def test_search_tracks_success(test_client, mock_spotify_service, mock_deezer_service):
+    response = await test_client.get("/tracks/search?q=test&offset=0")
     
     # Verify response
     assert response.status_code == 200
@@ -86,7 +87,7 @@ def test_search_tracks_success(test_client, mock_spotify_service, mock_deezer_se
     mock_spotify_service.search_tracks.assert_called_once_with("test", 0, 20)
     mock_deezer_service.fetch_deezer_id_by_isrc.assert_called_once_with("TEST12345678")
 
-def test_search_tracks_no_isrc(test_client, mock_spotify_service, mock_deezer_service):
+async def test_search_tracks_no_isrc(test_client, mock_spotify_service, mock_deezer_service):
     # Mock Spotify response with no ISRC
     mock_spotify_service.search_tracks.return_value = {
         "tracks": {
@@ -109,7 +110,7 @@ def test_search_tracks_no_isrc(test_client, mock_spotify_service, mock_deezer_se
         }
     }
 
-    response = test_client.get("/tracks/search?q=test&offset=0")
+    response = await test_client.get("/tracks/search?q=test&offset=0")
     
     # Verify response
     assert response.status_code == 200
@@ -122,7 +123,7 @@ def test_search_tracks_no_isrc(test_client, mock_spotify_service, mock_deezer_se
     mock_spotify_service.search_tracks.assert_called_once_with("test", 0, 20)
     mock_deezer_service.fetch_deezer_id_by_isrc.assert_not_called()
 
-def test_search_tracks_no_deezer_id(test_client, mock_spotify_service, mock_deezer_service):
+async def test_search_tracks_no_deezer_id(test_client, mock_spotify_service, mock_deezer_service):
     # Mock Spotify response
     mock_spotify_service.search_tracks.return_value = {
         "tracks": {
@@ -148,7 +149,7 @@ def test_search_tracks_no_deezer_id(test_client, mock_spotify_service, mock_deez
     # Mock Deezer response with no ID
     mock_deezer_service.fetch_deezer_id_by_isrc.return_value = None
 
-    response = test_client.get("/tracks/search?q=test&offset=0")
+    response = await test_client.get("/tracks/search?q=test&offset=0")
     
     # Verify response
     assert response.status_code == 200
@@ -161,16 +162,16 @@ def test_search_tracks_no_deezer_id(test_client, mock_spotify_service, mock_deez
     mock_spotify_service.search_tracks.assert_called_once_with("test", 0, 20)
     mock_deezer_service.fetch_deezer_id_by_isrc.assert_called_once_with("TEST12345678")
 
-def test_search_tracks_empty_query(test_client):
-    response = test_client.get("/tracks/search?q=&offset=0")
+async def test_search_tracks_empty_query(test_client):
+    response = await test_client.get("/tracks/search?q=&offset=0")
     
     assert response.status_code == 422
     data = response.json()
     assert "detail" in data
     assert data["detail"][0]["msg"] == "Value error, must not be empty or only whitespace"
 
-def test_search_tracks_whitespace_query(test_client):
-    response = test_client.get("/tracks/search?q=   &offset=0")
+async def test_search_tracks_whitespace_query(test_client):
+    response = await test_client.get("/tracks/search?q=   &offset=0")
     
     assert response.status_code == 422
     data = response.json()
