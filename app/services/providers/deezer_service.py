@@ -42,7 +42,7 @@ class DeezerService:
                 f"{ISRC_URL}{quote(isrc)}"
             )
         except HTTPException as e:
-            if e.status_code == 404:
+            if e.status_code != 500:
                 return None
             raise
 

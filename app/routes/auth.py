@@ -118,15 +118,15 @@ async def connect_spotify(spotify_oauth_request: SpotifyOAuthRequest, session: A
             if not user.is_oauth_account:
                 raise HTTPException(status_code=400, detail="This Spotify account is linked to a non-OAuth account")
             
-            user_id = user.user_id
             await user_spotify_oauth_account_service.update_oauth_tokens(
                 session,
-                user_id,
+                user.user_id,
                 spotify_subscription,
                 encrypt_token(spotify_access_token),
                 spotify_expires_in_seconds,
                 encrypt_token(spotify_refresh_token))
-            
+        
+        user_id = user.user_id
         user_session = await user_session_service.create_user_session(session, user_id)
 
     is_admin = user.is_admin
@@ -206,6 +206,10 @@ async def unlink_spotify(session: AsyncSession = Depends(postgresql_client.get_s
     user_id = access_token["user_id"]
 
     async with session.begin():
+        user = await user_service.get_user_by_user_id(session, user_id)
+        if user.is_oauth_account:
+            raise HTTPException(status_code=403, detail="Cannot unlink Spotify from an OAuth account")
+
         await user_spotify_oauth_account_service.delete_spotify_oauth_account_by_user_id(session, user_id)
 
     new_access_token = create_access_token(user_id, access_token["user_session_id"], access_token["is_admin"])

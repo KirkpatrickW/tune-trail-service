@@ -97,11 +97,6 @@ async def handle_retry(
         except (ReadTimeout, RemoteProtocolError, ConnectError) as e:
             continue
         except Exception as e:
-            if e:
-                logger.error(f"Exception of type {type(e).__name__}: {str(e)}")
-            else:
-                logger.error("An unexpected error occurred without an exception object.")
-
             status_code = getattr(e, 'response', {}).get('status_code', 500)
             raise HTTPException(status_code=status_code, detail=str(e))
 

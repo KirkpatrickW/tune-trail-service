@@ -30,9 +30,10 @@ class UserService:
     
 
     async def add_new_user(self, session: AsyncSession, username: str = None, hashed_password: bytes = None, is_oauth_account: bool = False):
-        existing_user = await self.get_user_by_username(session, username)
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Username already taken")
+        if username:
+            existing_user = await self.get_user_by_username(session, username)
+            if existing_user:
+                raise HTTPException(status_code=400, detail="Username already taken")
 
         user = User(username=username, hashed_password=hashed_password, is_oauth_account=is_oauth_account)
         session.add(user)
