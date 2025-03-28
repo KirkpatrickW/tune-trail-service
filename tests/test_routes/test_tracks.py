@@ -7,7 +7,6 @@ from tests.exception_handlers import pydantic_core_validation_exception_handler
 # Patch the services before importing the app
 with patch('app.services.providers.spotify_service.SpotifyService') as mock_spotify:
     with patch('app.services.providers.deezer_service.DeezerService') as mock_deezer:
-        from app.main import app
         from app.routes.tracks import spotify_service, deezer_service
 
 @pytest.fixture
@@ -47,6 +46,7 @@ def mock_deezer_service():
 
 @pytest.fixture
 def test_client():
+    from app.main import app
     from fastapi_cache import FastAPICache
     from fastapi_cache.backends.inmemory import InMemoryBackend
     FastAPICache.init(InMemoryBackend())

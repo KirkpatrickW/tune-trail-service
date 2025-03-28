@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 
 from app.models.postgresql import User, UserSpotifyOauthAccount
-from app.services.postgresql.user_spotify_oauth_account_service import UserSpotifyOAuthAccountService, Subscription
+from app.services.postgresql.user_spotify_oauth_account_service import UserSpotifyOAuthAccountService
 from app.services.postgresql.user_service import UserService
 
 @pytest.mark.asyncio
@@ -12,7 +12,7 @@ async def test_add_new_user_with_spotify_oauth_account(test_session):
     
     # Test adding a new user with Spotify OAuth account
     provider_user_id = "spotify123"
-    subscription = Subscription.PREMIUM
+    subscription = "premium"
     encrypted_access_token = "encrypted_token"
     encrypted_refresh_token = "encrypted_refresh"
     access_token_expires_in_seconds = 3600
@@ -30,7 +30,7 @@ async def test_add_new_user_with_spotify_oauth_account(test_session):
     assert user.is_oauth_account is True
     assert oauth_account.user_id == user.user_id
     assert oauth_account.provider_user_id == provider_user_id
-    assert oauth_account.subscription == subscription.value
+    assert oauth_account.subscription == "premium"
     assert oauth_account.encrypted_access_token == encrypted_access_token
     assert oauth_account.encrypted_refresh_token == encrypted_refresh_token
     assert oauth_account.access_token_expires_at > datetime.now(timezone.utc)
@@ -61,7 +61,7 @@ async def test_add_spotify_oauth_account_to_existing_user(test_session):
     
     # Test adding Spotify OAuth account to existing user
     provider_user_id = "spotify123"
-    subscription = Subscription.PREMIUM
+    subscription = "premium"
     encrypted_access_token = "encrypted_token"
     encrypted_refresh_token = "encrypted_refresh"
     access_token_expires_in_seconds = 3600
@@ -78,7 +78,7 @@ async def test_add_spotify_oauth_account_to_existing_user(test_session):
     
     assert oauth_account.user_id == user.user_id
     assert oauth_account.provider_user_id == provider_user_id
-    assert oauth_account.subscription == subscription.value
+    assert oauth_account.subscription == "premium"
     assert oauth_account.encrypted_access_token == encrypted_access_token
     assert oauth_account.encrypted_refresh_token == encrypted_refresh_token
     assert oauth_account.access_token_expires_at > datetime.now(timezone.utc)
@@ -101,7 +101,7 @@ async def test_get_spotify_oauth_account_by_user_id(test_session):
     # Create a test user with Spotify OAuth account
     user = await user_service.add_new_user(test_session, is_oauth_account=True)
     provider_user_id = "spotify123"
-    subscription = Subscription.PREMIUM
+    subscription = "premium"
     encrypted_access_token = "encrypted_token"
     encrypted_refresh_token = "encrypted_refresh"
     access_token_expires_in_seconds = 3600
@@ -132,7 +132,7 @@ async def test_get_spotify_oauth_account_by_provider_user_id(test_session):
     # Create a test user with Spotify OAuth account
     user = await user_service.add_new_user(test_session, is_oauth_account=True)
     provider_user_id = "spotify123"
-    subscription = Subscription.PREMIUM
+    subscription = "premium"
     encrypted_access_token = "encrypted_token"
     encrypted_refresh_token = "encrypted_refresh"
     access_token_expires_in_seconds = 3600
@@ -163,7 +163,7 @@ async def test_update_oauth_tokens(test_session):
     # Create a test user with Spotify OAuth account
     user = await user_service.add_new_user(test_session, is_oauth_account=True)
     provider_user_id = "spotify123"
-    subscription = Subscription.FREE
+    subscription = "free"
     encrypted_access_token = "old_token"
     encrypted_refresh_token = "old_refresh"
     access_token_expires_in_seconds = 3600
@@ -179,7 +179,7 @@ async def test_update_oauth_tokens(test_session):
     )
     
     # Test updating OAuth tokens
-    new_subscription = Subscription.PREMIUM
+    new_subscription = "premium"
     new_encrypted_access_token = "new_token"
     new_encrypted_refresh_token = "new_refresh"
     new_expires_in_seconds = 7200
@@ -193,7 +193,7 @@ async def test_update_oauth_tokens(test_session):
         new_encrypted_refresh_token
     )
     
-    assert updated_account.subscription == new_subscription.value
+    assert updated_account.subscription == "premium"
     assert updated_account.encrypted_access_token == new_encrypted_access_token
     assert updated_account.encrypted_refresh_token == new_encrypted_refresh_token
     assert updated_account.access_token_expires_at > datetime.now(timezone.utc)
@@ -201,7 +201,7 @@ async def test_update_oauth_tokens(test_session):
     # Verify update in database
     result = await test_session.execute(select(UserSpotifyOauthAccount).where(UserSpotifyOauthAccount.user_id == user.user_id))
     saved_account = result.scalar_one()
-    assert saved_account.subscription == new_subscription.value
+    assert saved_account.subscription == "premium"
     assert saved_account.encrypted_access_token == new_encrypted_access_token
     assert saved_account.encrypted_refresh_token == new_encrypted_refresh_token
 
@@ -213,7 +213,7 @@ async def test_delete_spotify_oauth_account_by_user_id(test_session):
     # Create a test user with Spotify OAuth account
     user = await user_service.add_new_user(test_session, is_oauth_account=True)
     provider_user_id = "spotify123"
-    subscription = Subscription.PREMIUM
+    subscription = "premium"
     encrypted_access_token = "encrypted_token"
     encrypted_refresh_token = "encrypted_refresh"
     access_token_expires_in_seconds = 3600
@@ -246,7 +246,7 @@ async def test_add_new_user_with_spotify_oauth_account_existing_account(test_ses
     
     # Create first user with Spotify OAuth account
     provider_user_id = "spotify123"
-    subscription = Subscription.PREMIUM
+    subscription = "premium"
     encrypted_access_token = "encrypted_token"
     encrypted_refresh_token = "encrypted_refresh"
     access_token_expires_in_seconds = 3600
@@ -282,7 +282,7 @@ async def test_add_spotify_oauth_account_to_existing_user_errors(test_session):
             test_session,
             999,  # Non-existent user ID
             "spotify123",
-            Subscription.PREMIUM,
+            "premium",
             "encrypted_token",
             "encrypted_refresh",
             3600
@@ -295,7 +295,7 @@ async def test_add_spotify_oauth_account_to_existing_user_errors(test_session):
     
     # Create another user with the same Spotify account
     provider_user_id = "spotify123"
-    subscription = Subscription.PREMIUM
+    subscription = "premium"
     encrypted_access_token = "encrypted_token"
     encrypted_refresh_token = "encrypted_refresh"
     access_token_expires_in_seconds = 3600
@@ -355,7 +355,7 @@ async def test_update_oauth_tokens_non_existent_account(test_session):
         await service.update_oauth_tokens(
             test_session,
             999,  # Non-existent user ID
-            Subscription.PREMIUM,
+            "premium",
             "encrypted_token",
             3600,
             "encrypted_refresh"

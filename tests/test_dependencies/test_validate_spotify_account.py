@@ -38,7 +38,7 @@ async def test_validate_spotify_account_no_token():
             await validate_spotify_account()
         
         assert exc_info.value.status_code == 409
-        assert exc_info.value.detail == "Spotify account must be linked."
+        assert exc_info.value.detail == "Spotify account must be linked"
 
 @pytest.mark.asyncio
 async def test_validate_spotify_account_no_context():
@@ -50,4 +50,4 @@ async def test_validate_spotify_account_no_context():
             await validate_spotify_account()
         
         assert exc_info.value.status_code == 409
-        assert exc_info.value.detail == "Spotify account must be linked." 
+        assert exc_info.value.detail == "Spotify account must be linked" 
