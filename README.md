@@ -12,6 +12,28 @@ Before setting up and running the project, make sure you have the following tool
    python -m pip install --upgrade pip
    ```
 - **Azure CLI**: The Azure CLI is required to interact with Azure resources. If you haven't already, install it from the [official Azure CLI installation guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
+- **Python 3.11 or higher**
+- **PostgreSQL 15 or higher with the `postgis` extension installed**
+
+## Test Prerequisites
+
+For running the integration tests, you need:
+- A local PostgreSQL database with the PostGIS extension installed
+- The database should be accessible with the following credentials:
+  - Host: localhost
+  - Port: 5432
+  - Database: tune_trail_test
+  - Username: postgres
+  - Password: postgres
+
+To install PostGIS on PostgreSQL:
+```bash
+# On Ubuntu/Debian
+sudo apt-get install postgresql-15-postgis-3
+
+# On macOS with Homebrew
+brew install postgis
+```
 
 ## Setup Instructions
 
@@ -93,3 +115,26 @@ uvicorn app.main:app --reload
 ```
 
 This will start the server with auto-reloading enabled.
+
+## Running Tests
+
+1. Create the test database:
+```bash
+createdb tune_trail_test
+psql tune_trail_test -c "CREATE EXTENSION postgis;"
+```
+
+2. Run the tests:
+```bash
+# Run all tests
+pytest
+
+# Run tests with coverage report
+pytest --cov=app tests/
+
+# Run specific test file
+pytest tests/test_routes/test_localities.py
+
+# Run tests with verbose output
+pytest -v
+```
