@@ -1,5 +1,4 @@
 import pytest
-from datetime import datetime, timezone
 from sqlalchemy import select
 
 from app.models.postgresql import User

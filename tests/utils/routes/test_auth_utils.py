@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.routes.auth_utils import fetch_or_refresh_spotify_access_token_details
-from app.utils.encryption_helper import encrypt_token, decrypt_token
+from app.utils.encryption_helper import encrypt_token
 
 @pytest.fixture
 def mock_session():
@@ -58,10 +58,7 @@ async def test_fetch_or_refresh_spotify_access_token_details_no_account(
     )
 
 @pytest.mark.asyncio
-async def test_fetch_or_refresh_spotify_access_token_details_valid_token(
-    mock_session,
-    mock_user_spotify_oauth_account_service
-):
+async def test_fetch_or_refresh_spotify_access_token_details_valid_token(mock_session, mock_user_spotify_oauth_account_service):
     # Spotify OAuth account exists with valid token
     encrypted_access_token = encrypt_token("valid_access_token")
     mock_oauth_account = MagicMock(
@@ -84,11 +81,7 @@ async def test_fetch_or_refresh_spotify_access_token_details_valid_token(
     )
 
 @pytest.mark.asyncio
-async def test_fetch_or_refresh_spotify_access_token_details_successful_refresh(
-    mock_session,
-    mock_user_spotify_oauth_account_service,
-    mock_spotify_service
-):
+async def test_fetch_or_refresh_spotify_access_token_details_successful_refresh(mock_session, mock_user_spotify_oauth_account_service, mock_spotify_service):
     # Spotify OAuth account exists with expired token
     encrypted_refresh_token = encrypt_token("valid_refresh_token")
     mock_oauth_account = MagicMock(
@@ -120,13 +113,7 @@ async def test_fetch_or_refresh_spotify_access_token_details_successful_refresh(
     mock_user_spotify_oauth_account_service.update_oauth_tokens.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_fetch_or_refresh_spotify_access_token_details_failed_refresh_oauth_user(
-    mock_session,
-    mock_user_spotify_oauth_account_service,
-    mock_spotify_service,
-    mock_user_service,
-    mock_user_session_service
-):
+async def test_fetch_or_refresh_spotify_access_token_details_failed_refresh_oauth_user(mock_session, mock_user_spotify_oauth_account_service, mock_spotify_service, mock_user_service, mock_user_session_service):
     # Spotify OAuth account exists with expired token
     encrypted_refresh_token = encrypt_token("valid_refresh_token")
     mock_oauth_account = MagicMock(
@@ -160,12 +147,7 @@ async def test_fetch_or_refresh_spotify_access_token_details_failed_refresh_oaut
     mock_user_session_service.invalidate_all_user_sessions_by_user_id.assert_called_once_with(mock_session, 1)
 
 @pytest.mark.asyncio
-async def test_fetch_or_refresh_spotify_access_token_details_failed_refresh_non_oauth_user(
-    mock_session,
-    mock_user_spotify_oauth_account_service,
-    mock_spotify_service,
-    mock_user_service
-):
+async def test_fetch_or_refresh_spotify_access_token_details_failed_refresh_non_oauth_user(mock_session, mock_user_spotify_oauth_account_service, mock_spotify_service, mock_user_service):
     # Spotify OAuth account exists with expired token
     encrypted_refresh_token = encrypt_token("valid_refresh_token")
     mock_oauth_account = MagicMock(

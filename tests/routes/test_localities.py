@@ -4,10 +4,9 @@ from tests.exception_handlers import pydantic_core_validation_exception_handler
 from httpx import AsyncClient, ASGITransport
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
-from app.models.postgresql import User, UserSession, Locality, Track, LocalityTrack, LocalityTrackVote
+from app.models.postgresql import User, Locality, Track, LocalityTrack, LocalityTrackVote
 from app.utils.jwt_helper import create_access_token
 from unittest.mock import AsyncMock, patch
-from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 
 
@@ -107,7 +106,6 @@ def test_token():
 
 @pytest.fixture
 async def test_localities(test_session):
-    """Create test localities in the database."""
     localities = [
         Locality(
             locality_id=123456,
@@ -130,7 +128,6 @@ async def test_localities(test_session):
 
 @pytest.fixture
 async def test_tracks(test_session):
-    """Create test tracks in the database."""
     tracks = [
         Track(
             track_id=1,
@@ -157,7 +154,6 @@ async def test_tracks(test_session):
 
 @pytest.fixture
 async def test_users(test_session):
-    """Create test users in the database."""
     users = [
         User(
             username="testuser1",
@@ -178,7 +174,6 @@ async def test_users(test_session):
 
 @pytest.fixture
 async def test_locality_tracks(test_session, test_localities, test_tracks, test_users):
-    """Create test locality tracks in the database."""
     locality_tracks = [
         LocalityTrack(
             locality_id=test_localities[0].locality_id,  # Test City
@@ -199,7 +194,6 @@ async def test_locality_tracks(test_session, test_localities, test_tracks, test_
 
 @pytest.fixture
 async def test_user_votes(test_session, test_locality_tracks, test_users):
-    """Create test user votes in the database."""
     user_votes = [
         LocalityTrackVote(
             locality_track_id=test_locality_tracks[0].locality_track_id,
@@ -213,7 +207,6 @@ async def test_user_votes(test_session, test_locality_tracks, test_users):
 
 @pytest.mark.asyncio
 async def test_get_localities_success(test_client, test_session, mock_overpass_service, test_localities):
-    """Test successful retrieval of localities."""
     response = await test_client.get(
         "/localities",
         params={
@@ -247,7 +240,6 @@ async def test_get_localities_success(test_client, test_session, mock_overpass_s
 
 @pytest.mark.asyncio
 async def test_get_localities_invalid_latitude(test_client, test_session, mock_overpass_service, test_localities):
-    """Test getting localities with invalid latitude."""
     response = await test_client.get(
         "/localities",
         params={
@@ -263,7 +255,6 @@ async def test_get_localities_invalid_latitude(test_client, test_session, mock_o
 
 @pytest.mark.asyncio
 async def test_get_localities_invalid_longitude(test_client, test_session, mock_overpass_service, test_localities):
-    """Test getting localities with invalid longitude."""
     response = await test_client.get(
         "/localities",
         params={
@@ -279,7 +270,6 @@ async def test_get_localities_invalid_longitude(test_client, test_session, mock_
 
 @pytest.mark.asyncio
 async def test_get_localities_north_less_than_south(test_client, test_session, mock_overpass_service, test_localities):
-    """Test getting localities with north less than south."""
     response = await test_client.get(
         "/localities",
         params={
@@ -295,7 +285,6 @@ async def test_get_localities_north_less_than_south(test_client, test_session, m
 
 @pytest.mark.asyncio
 async def test_get_localities_east_less_than_west(test_client, test_session, mock_overpass_service, test_localities):
-    """Test getting localities with east less than west."""
     response = await test_client.get(
         "/localities",
         params={
@@ -311,7 +300,6 @@ async def test_get_localities_east_less_than_west(test_client, test_session, moc
 
 @pytest.mark.asyncio
 async def test_get_localities_empty_results(test_client, test_session, mock_overpass_service):
-    """Test getting localities when no results are found in database or Overpass."""
     # Mock Overpass service to return empty list
     mock_overpass_service.get_localities_by_bounds.return_value = []
     
@@ -332,7 +320,6 @@ async def test_get_localities_empty_results(test_client, test_session, mock_over
 
 @pytest.mark.asyncio
 async def test_get_tracks_in_locality_unauthorized(test_client, test_session, test_localities, test_tracks, test_users, test_locality_tracks):
-    """Test getting tracks from a locality as an unauthorized user."""
     response = await test_client.get(f"/localities/{test_localities[0].locality_id}/tracks")
     
     assert response.status_code == 200
@@ -369,7 +356,6 @@ async def test_get_tracks_in_locality_unauthorized(test_client, test_session, te
 
 @pytest.mark.asyncio
 async def test_get_tracks_in_locality_success(test_client, test_session, test_localities, test_tracks, test_users, test_locality_tracks, test_user_votes):
-    """Test successful retrieval of tracks in a locality."""
     # Create a token for a user who has a track in the locality
     token = create_access_token(
         user_id=test_users[0].user_id,
@@ -420,7 +406,6 @@ async def test_get_tracks_in_locality_success(test_client, test_session, test_lo
 
 @pytest.mark.asyncio
 async def test_get_tracks_in_locality_no_tracks(test_client, test_session, test_localities, test_users):
-    """Test getting tracks from a locality with no tracks."""
     # Create a token for a user
     token = create_access_token(
         user_id=test_users[0].user_id,
@@ -441,7 +426,6 @@ async def test_get_tracks_in_locality_no_tracks(test_client, test_session, test_
 
 @pytest.mark.asyncio
 async def test_get_tracks_in_locality_nonexistent(test_client, test_session, test_users):
-    """Test getting tracks from a nonexistent locality."""
     # Create a token for a user
     token = create_access_token(
         user_id=test_users[0].user_id,
@@ -460,7 +444,6 @@ async def test_get_tracks_in_locality_nonexistent(test_client, test_session, tes
 
 @pytest.mark.asyncio
 async def test_add_track_to_locality_existing_locality(test_client, test_session, test_localities, test_tracks, test_users, mock_spotify_service, mock_deezer_service):
-    """Test adding a track to an existing locality."""
     token = create_access_token(
         user_id=test_users[0].user_id,
         user_session_id="test_session",
@@ -478,7 +461,6 @@ async def test_add_track_to_locality_existing_locality(test_client, test_session
 
 @pytest.mark.asyncio
 async def test_add_track_to_locality_new_locality(test_client, test_session, mock_overpass_service, test_tracks, test_users, mock_spotify_service, mock_deezer_service):
-    """Test adding a track to a new locality from Overpass."""
     token = create_access_token(
         user_id=test_users[0].user_id,
         user_session_id="test_session",
@@ -504,7 +486,6 @@ async def test_add_track_to_locality_new_locality(test_client, test_session, moc
 
 @pytest.mark.asyncio
 async def test_add_track_to_locality_nonexistent_locality(test_client, test_session, mock_overpass_service, test_tracks, test_users, mock_spotify_service, mock_deezer_service):
-    """Test adding a track to a nonexistent locality."""
     token = create_access_token(
         user_id=test_users[0].user_id,
         user_session_id="test_session",
@@ -525,7 +506,6 @@ async def test_add_track_to_locality_nonexistent_locality(test_client, test_sess
 
 @pytest.mark.asyncio
 async def test_add_track_to_locality_new_track(test_client, test_session, test_localities, test_users, mock_spotify_service, mock_deezer_service):
-    """Test adding a new track to a locality."""
     token = create_access_token(
         user_id=test_users[0].user_id,
         user_session_id="test_session",
@@ -556,7 +536,6 @@ async def test_add_track_to_locality_new_track(test_client, test_session, test_l
 
 @pytest.mark.asyncio
 async def test_add_track_to_locality_nonexistent_track(test_client, test_session, test_localities, test_users, mock_spotify_service, mock_deezer_service):
-    """Test adding a track that doesn't exist in Spotify."""
     token = create_access_token(
         user_id=test_users[0].user_id,
         user_session_id="test_session",
@@ -577,7 +556,6 @@ async def test_add_track_to_locality_nonexistent_track(test_client, test_session
 
 @pytest.mark.asyncio
 async def test_add_track_to_locality_no_deezer_match(test_client, test_session, test_localities, test_users, mock_spotify_service, mock_deezer_service):
-    """Test adding a track that exists in Spotify but not in Deezer."""
     token = create_access_token(
         user_id=test_users[0].user_id,
         user_session_id="test_session",
@@ -598,7 +576,6 @@ async def test_add_track_to_locality_no_deezer_match(test_client, test_session, 
 
 @pytest.mark.asyncio
 async def test_add_track_to_locality_unauthorized(test_client, test_session, test_localities):
-    """Test adding a track without authentication."""
     response = await test_client.put(
         f"/localities/{test_localities[0].locality_id}/tracks/spotify123"
     )
@@ -608,7 +585,6 @@ async def test_add_track_to_locality_unauthorized(test_client, test_session, tes
 
 @pytest.mark.asyncio
 async def test_get_tracks_for_localities_success(test_client, test_session, test_localities, test_tracks, test_users, test_locality_tracks, mock_deezer_service):
-    """Test successful retrieval of tracks from localities within radius."""
     # Mock Deezer service to return preview URLs for both tracks
     mock_deezer_service.fetch_preview_url_by_deezer_id.side_effect = [
         "https://example.com/preview1.mp3",  # For first track
@@ -669,7 +645,6 @@ async def test_get_tracks_for_localities_success(test_client, test_session, test
 
 @pytest.mark.asyncio
 async def test_get_tracks_for_localities_no_preview_url(test_client, test_session, test_localities, test_tracks, test_users, test_locality_tracks, mock_deezer_service):
-    """Test that tracks without preview URLs are excluded."""
     # Mock Deezer service to return None for all preview URLs
     mock_deezer_service.fetch_preview_url_by_deezer_id.return_value = None
     
@@ -697,7 +672,6 @@ async def test_get_tracks_for_localities_no_preview_url(test_client, test_sessio
 
 @pytest.mark.asyncio
 async def test_get_tracks_for_localities_no_localities_in_radius(test_client, test_session, test_localities, test_tracks, test_users, test_locality_tracks, mock_deezer_service):
-    """Test when no localities are within the specified radius."""
     # Mock Deezer service to return preview URLs
     mock_deezer_service.fetch_preview_url_by_deezer_id.return_value = "https://example.com/preview.mp3"
     

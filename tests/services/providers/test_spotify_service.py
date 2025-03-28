@@ -1,7 +1,6 @@
 import pytest
 from fastapi import HTTPException
-from unittest.mock import AsyncMock, MagicMock, patch
-import time
+from unittest.mock import AsyncMock, patch
 
 from app.services.providers.spotify_service import SpotifyService
 

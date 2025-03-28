@@ -29,7 +29,6 @@ TEST_DATABASE_URL = f"postgresql://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HO
 TEST_DATABASE_URL_ASYNC = f"postgresql+asyncpg://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/{TEST_DB_NAME}"
 
 def create_test_database():
-    """Create the test database if it doesn't exist."""
     # Connect to default postgres database
     conn = psycopg2.connect(
         host=TEST_DB_HOST,
@@ -55,7 +54,6 @@ def create_test_database():
 
 @pytest.fixture(scope="session")
 def event_loop():
-    """Create an instance of the default event loop for each test case."""
     policy = asyncio.get_event_loop_policy()
     loop = policy.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -64,7 +62,6 @@ def event_loop():
 
 @pytest.fixture(scope="session")
 async def test_engine():
-    """Create a test database engine and run migrations."""
     # Create test database if it doesn't exist
     create_test_database()
     
@@ -123,7 +120,6 @@ async def test_engine():
 
 @pytest.fixture(autouse=True)
 async def cleanup_database(test_engine):
-    """Clean up the database after each test file."""
     try:
         async with test_engine.begin() as conn:
             # Delete all data from all tables

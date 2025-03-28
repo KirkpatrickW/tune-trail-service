@@ -1,9 +1,9 @@
 import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from sqlalchemy import select
 import uuid
 
-from app.models.postgresql import User, UserSession
+from app.models.postgresql import UserSession
 from app.services.postgresql.user_session_service import UserSessionService
 from app.services.postgresql.user_service import UserService
 

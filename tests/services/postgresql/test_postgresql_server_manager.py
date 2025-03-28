@@ -24,7 +24,7 @@ def server_manager(mock_credential, mock_client):
         return PostgreSQLServerManager()
 
 def test_init_success(server_manager, mock_credential, mock_client):
-    # Verify initialization
+    # Verify initialisation
     assert server_manager._resource_group == "TuneTrail"
     assert server_manager._server_name == "tunetrail-postgresql-server"
     assert server_manager._subscription_id == "3ed2f70f-52a1-48f8-bcc7-f0b08214d849"

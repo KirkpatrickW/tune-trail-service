@@ -1,5 +1,4 @@
 import pytest
-from fastapi.testclient import TestClient
 from pydantic_core import ValidationError as PydanticCoreValidationError
 from tests.exception_handlers import pydantic_core_validation_exception_handler
 from datetime import datetime, timezone
@@ -29,7 +28,6 @@ async def test_client(test_session):
 
 @pytest.fixture
 def test_token():
-    """Create a real JWT token for testing."""
     return create_access_token(
         user_id=1,
         user_session_id="test_session",

@@ -1,7 +1,6 @@
 import pytest
 from fastapi import HTTPException, Request
 from unittest.mock import AsyncMock, patch
-from contextvars import ContextVar
 
 from app.dependencies.validate_jwt import validate_jwt, validate_jwt_allow_unauthenticated, access_token_data_ctx
 

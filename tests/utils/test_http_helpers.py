@@ -3,14 +3,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
 from httpx import HTTPStatusError, Response, ReadTimeout, ConnectError, RemoteProtocolError
-from app.utils.http_helpers import (
-    RetryConfig,
-    handle_rate_limit,
-    handle_retry,
-    METHODS,
-    METHOD_ARGUMENTS,
-    http_client  # Import the singleton instance
-)
+from app.utils.http_helpers import RetryConfig, handle_rate_limit, handle_retry, METHODS
 
 @pytest.fixture
 def mock_sleep():

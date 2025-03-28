@@ -1,6 +1,6 @@
 import pytest
 from fastapi import Request
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 import asyncio
 
 from app.decorators.handle_client_disconnect import handle_client_disconnect, disconnect_poller
