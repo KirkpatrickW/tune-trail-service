@@ -1,0 +1,15 @@
+[run]
+concurrency = asyncio
+branch = True
+omit = 
+    app/clients/http_client.py
+    app/clients/postgresql_client.py
+    app/lifecycle/lifespan_manager.py
+    app/lifecycle/reload_with_flag_handler.py
+    app/main.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    if typing.TYPE_CHECKING:

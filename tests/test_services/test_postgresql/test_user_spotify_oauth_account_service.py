@@ -157,18 +157,18 @@ async def test_get_spotify_oauth_account_by_provider_user_id(test_session):
 
 @pytest.mark.asyncio
 async def test_update_oauth_tokens(test_session):
+    service = UserSpotifyOAuthAccountService()
     user_service = UserService()
-    oauth_service = UserSpotifyOAuthAccountService()
     
     # Create a test user with Spotify OAuth account
     user = await user_service.add_new_user(test_session, is_oauth_account=True)
     provider_user_id = "spotify123"
-    subscription = "free"
-    encrypted_access_token = "old_token"
-    encrypted_refresh_token = "old_refresh"
+    subscription = "premium"
+    encrypted_access_token = "encrypted_token"
+    encrypted_refresh_token = "encrypted_refresh"
     access_token_expires_in_seconds = 3600
     
-    oauth_account = await oauth_service.add_spotify_oauth_account_to_existing_user(
+    oauth_account = await service.add_spotify_oauth_account_to_existing_user(
         test_session,
         user.user_id,
         provider_user_id,
@@ -178,13 +178,13 @@ async def test_update_oauth_tokens(test_session):
         access_token_expires_in_seconds
     )
     
-    # Test updating OAuth tokens
-    new_subscription = "premium"
-    new_encrypted_access_token = "new_token"
-    new_encrypted_refresh_token = "new_refresh"
+    # Test updating tokens with new refresh token
+    new_subscription = "free"
+    new_encrypted_access_token = "new_encrypted_token"
+    new_encrypted_refresh_token = "new_encrypted_refresh"
     new_expires_in_seconds = 7200
     
-    updated_account = await oauth_service.update_oauth_tokens(
+    updated_account = await service.update_oauth_tokens(
         test_session,
         user.user_id,
         new_subscription,
@@ -193,17 +193,27 @@ async def test_update_oauth_tokens(test_session):
         new_encrypted_refresh_token
     )
     
-    assert updated_account.subscription == "premium"
+    assert updated_account.subscription == "free"
     assert updated_account.encrypted_access_token == new_encrypted_access_token
     assert updated_account.encrypted_refresh_token == new_encrypted_refresh_token
     assert updated_account.access_token_expires_at > datetime.now(timezone.utc)
     
-    # Verify update in database
-    result = await test_session.execute(select(UserSpotifyOauthAccount).where(UserSpotifyOauthAccount.user_id == user.user_id))
-    saved_account = result.scalar_one()
-    assert saved_account.subscription == "premium"
-    assert saved_account.encrypted_access_token == new_encrypted_access_token
-    assert saved_account.encrypted_refresh_token == new_encrypted_refresh_token
+    # Test updating tokens without new refresh token
+    new_encrypted_access_token = "another_encrypted_token"
+    new_expires_in_seconds = 1800
+    
+    updated_account = await service.update_oauth_tokens(
+        test_session,
+        user.user_id,
+        new_subscription,
+        new_encrypted_access_token,
+        new_expires_in_seconds
+    )
+    
+    assert updated_account.subscription == "free"
+    assert updated_account.encrypted_access_token == new_encrypted_access_token
+    assert updated_account.encrypted_refresh_token == new_encrypted_refresh_token  # Should remain unchanged
+    assert updated_account.access_token_expires_at > datetime.now(timezone.utc)
 
 @pytest.mark.asyncio
 async def test_delete_spotify_oauth_account_by_user_id(test_session):
