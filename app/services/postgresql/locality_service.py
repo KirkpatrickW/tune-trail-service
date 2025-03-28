@@ -1,12 +1,12 @@
 from fastapi import HTTPException
 
-from sqlalchemy import func
+from sqlalchemy import join
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from geoalchemy2 import Geography, functions as geo_functions
 
-from models.postgresql import Locality
+from models.postgresql import Locality, LocalityTrack, Track
 
 class LocalityService:
     _instance = None
@@ -47,3 +47,37 @@ class LocalityService:
         localities = result.scalars().all()
 
         return localities
+
+
+    async def get_tracks_for_localities_within_radius(self, session: AsyncSession, latitude: float, longitude: float, radius: float):
+        center_point = geo_functions.ST_SetSRID(geo_functions.ST_MakePoint(longitude, latitude), 4326).cast(Geography)
+
+        stmt = select(Locality.locality_id, Locality.name, Track, LocalityTrack.total_votes) \
+            .select_from(join(Locality, LocalityTrack, Locality.locality_id == LocalityTrack.locality_id)
+                .join(Track, Track.track_id == LocalityTrack.track_id)) \
+            .where(geo_functions.ST_DWithin(Locality.geog, center_point, radius)) \
+            .order_by(geo_functions.ST_Distance(Locality.geog, center_point))
+        
+
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        locality_map = {}
+        for locality_id, locality_name, track, total_votes in rows:
+            key = (locality_id, locality_name)
+            if key not in locality_map:
+                locality_map[key] = {
+                    "locality_id": locality_id,
+                    "name": locality_name,
+                    "tracks": []
+                }
+            locality_map[key]["tracks"].append((track, total_votes))
+
+        return [
+            {
+                "locality_id": locality_id,
+                "name": name,
+                "tracks": [track for track, _ in sorted(data["tracks"], key=lambda t: t[1], reverse=True)]
+            }
+            for (locality_id, name), data in locality_map.items()
+        ]

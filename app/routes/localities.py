@@ -7,6 +7,7 @@ from clients.postgresql_client import PostgreSQLClient
 from dependencies.validate_jwt import access_token_data_ctx, validate_jwt, validate_jwt_allow_unauthenticated
 
 from models.schemas.localities.bounds_params import BoundsParams
+from models.schemas.localities.user_location_params import UserLocationParams
 
 from services.postgresql.locality_service import LocalityService
 from services.postgresql.locality_track_service import LocalityTrackService
@@ -68,6 +69,33 @@ async def get_localities(bounds_params: BoundsParams = Depends(), session: Async
     ]
 
     return extracted_point_features
+
+
+@localities_router.get("/tracks")
+async def get_tracks_for_localities(user_location_params: UserLocationParams = Depends(), session: AsyncSession = Depends(postgresql_client.get_session)):
+    async with session.begin():
+        tracks_for_localities = await locality_service.get_tracks_for_localities_within_radius(session, user_location_params.latitude, user_location_params.longitude, user_location_params.radius)
+
+    for locality in tracks_for_localities:
+        transformed_tracks = []
+        for track in locality["tracks"]:
+            preview_url = await deezer_service.fetch_preview_url_by_deezer_id(track.deezer_id)
+            if not preview_url:
+                continue
+            
+            transformed_tracks.append({
+                **{k: v for k, v in vars(track).items() if not k.startswith('_') and k not in {"cover_small", "cover_medium", "cover_large", "spotify_id", "deezer_id", "isrc"}},
+                "cover": {
+                    "small": track.cover_small,
+                    "medium": track.cover_medium,
+                    "large": track.cover_large
+                },
+                "preview_url": preview_url
+            })
+
+        locality["tracks"] = transformed_tracks
+
+    return tracks_for_localities
 
 
 @localities_router.get("/{locality_id}/tracks", dependencies=[
