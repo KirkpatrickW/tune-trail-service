@@ -1,5 +1,4 @@
 [run]
-concurrency = asyncio
 branch = True
 omit = 
     app/clients/http_client.py

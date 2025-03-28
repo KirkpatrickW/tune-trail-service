@@ -90,7 +90,10 @@ def mock_deezer_service():
     instance = AsyncMock()
     instance.fetch_deezer_id_by_isrc = AsyncMock()
     instance.fetch_deezer_id_by_isrc.return_value = 123456
+    instance.fetch_preview_url_by_deezer_id = AsyncMock()
+    instance.fetch_preview_url_by_deezer_id.return_value = "https://example.com/preview.mp3"
     deezer_service.fetch_deezer_id_by_isrc = instance.fetch_deezer_id_by_isrc
+    deezer_service.fetch_preview_url_by_deezer_id = instance.fetch_preview_url_by_deezer_id
     yield instance
 
 @pytest.fixture
@@ -602,3 +605,115 @@ async def test_add_track_to_locality_unauthorized(test_client, test_session, tes
     
     assert response.status_code == 403
     assert response.json()["detail"] == "Not authenticated"
+
+@pytest.mark.asyncio
+async def test_get_tracks_for_localities_success(test_client, test_session, test_localities, test_tracks, test_users, test_locality_tracks, mock_deezer_service):
+    """Test successful retrieval of tracks from localities within radius."""
+    # Mock Deezer service to return preview URLs for both tracks
+    mock_deezer_service.fetch_preview_url_by_deezer_id.side_effect = [
+        "https://example.com/preview1.mp3",  # For first track
+        "https://example.com/preview2.mp3"   # For second track
+    ]
+    
+    # Test with coordinates near Test City (51.5074, -0.1278)
+    response = await test_client.get(
+        "/localities/tracks",
+        params={
+            "latitude": 51.5074,
+            "longitude": -0.1278,
+            "radius": 1000  # 1km radius
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify response structure
+    assert isinstance(data, list)
+    assert len(data) == 1  # Only Test City should be within radius
+    
+    # Verify locality structure
+    locality = data[0]
+    assert locality["locality_id"] == test_localities[0].locality_id
+    assert locality["name"] == "Test City"
+    assert "tracks" in locality
+    
+    # Verify tracks structure
+    tracks = locality["tracks"]
+    assert len(tracks) == 2  # Both tracks from Test City
+    
+    # Verify track structure and preview URLs
+    assert tracks[0]["preview_url"] == "https://example.com/preview1.mp3"
+    assert tracks[1]["preview_url"] == "https://example.com/preview2.mp3"
+    
+    # Verify track structure
+    for track in tracks:
+        assert "track_id" in track
+        assert "name" in track
+        assert "artists" in track
+        assert "cover" in track
+        assert "preview_url" in track
+        
+        # Verify cover object structure
+        assert "small" in track["cover"]
+        assert "medium" in track["cover"]
+        assert "large" in track["cover"]
+        
+        # Verify certain fields are excluded
+        assert "cover_small" not in track
+        assert "cover_medium" not in track
+        assert "cover_large" not in track
+        assert "spotify_id" not in track
+        assert "deezer_id" not in track
+        assert "isrc" not in track
+
+@pytest.mark.asyncio
+async def test_get_tracks_for_localities_no_preview_url(test_client, test_session, test_localities, test_tracks, test_users, test_locality_tracks, mock_deezer_service):
+    """Test that tracks without preview URLs are excluded."""
+    # Mock Deezer service to return None for all preview URLs
+    mock_deezer_service.fetch_preview_url_by_deezer_id.return_value = None
+    
+    response = await test_client.get(
+        "/localities/tracks",
+        params={
+            "latitude": 51.5074,
+            "longitude": -0.1278,
+            "radius": 1000
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify response structure
+    assert isinstance(data, list)
+    assert len(data) == 1  # Only Test City should be within radius
+    
+    # Verify no tracks are returned since they have no preview URLs
+    locality = data[0]
+    assert locality["locality_id"] == test_localities[0].locality_id
+    assert locality["name"] == "Test City"
+    assert len(locality["tracks"]) == 0
+
+@pytest.mark.asyncio
+async def test_get_tracks_for_localities_no_localities_in_radius(test_client, test_session, test_localities, test_tracks, test_users, test_locality_tracks, mock_deezer_service):
+    """Test when no localities are within the specified radius."""
+    # Mock Deezer service to return preview URLs
+    mock_deezer_service.fetch_preview_url_by_deezer_id.return_value = "https://example.com/preview.mp3"
+    
+    # Test with coordinates far from any test localities
+    response = await test_client.get(
+        "/localities/tracks",
+        params={
+            "latitude": 0.0,
+            "longitude": 0.0,
+            "radius": 1000  # 1km radius
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify empty response
+    assert isinstance(data, list)
+    assert len(data) == 0

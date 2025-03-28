@@ -122,4 +122,55 @@ def test_validate_rate_limit_body(deezer_service):
         "id": 123456,
         "isrc": "USRC12345678"
     }
-    assert deezer_service.retry_config.validate_rate_limit_body(success_response) is False 
+    assert deezer_service.retry_config.validate_rate_limit_body(success_response) is False
+
+@pytest.mark.asyncio
+async def test_fetch_preview_url_by_deezer_id_success(deezer_service):
+    mock_response = {
+        "id": 123456,
+        "preview": "https://example.com/preview.mp3"
+    }
+    
+    with patch('app.services.providers.deezer_service.handle_retry', new_callable=AsyncMock) as mock_handle_retry:
+        mock_handle_retry.return_value = mock_response
+        
+        result = await deezer_service.fetch_preview_url_by_deezer_id(123456)
+        
+        assert result == "https://example.com/preview.mp3"
+        mock_handle_retry.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_fetch_preview_url_by_deezer_id_no_preview(deezer_service):
+    mock_response = {
+        "id": 123456,
+        "preview": None
+    }
+    
+    with patch('app.services.providers.deezer_service.handle_retry', new_callable=AsyncMock) as mock_handle_retry:
+        mock_handle_retry.return_value = mock_response
+        
+        result = await deezer_service.fetch_preview_url_by_deezer_id(123456)
+        
+        assert result is None
+        mock_handle_retry.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_fetch_preview_url_by_deezer_id_404_error(deezer_service):
+    with patch('app.services.providers.deezer_service.handle_retry', new_callable=AsyncMock) as mock_handle_retry:
+        mock_handle_retry.side_effect = HTTPException(status_code=404, detail="Not found")
+        
+        result = await deezer_service.fetch_preview_url_by_deezer_id(999999)
+        
+        assert result is None
+        mock_handle_retry.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_fetch_preview_url_by_deezer_id_other_http_error(deezer_service):
+    with patch('app.services.providers.deezer_service.handle_retry', new_callable=AsyncMock) as mock_handle_retry:
+        mock_handle_retry.side_effect = HTTPException(status_code=500, detail="Internal server error")
+        
+        with pytest.raises(HTTPException) as exc_info:
+            await deezer_service.fetch_preview_url_by_deezer_id(123456)
+        
+        assert exc_info.value.status_code == 500
+        mock_handle_retry.assert_called_once() 
