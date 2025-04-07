@@ -42,7 +42,7 @@ class UserService:
         next_offset = offset + 20 if offset + 20 < total_matching_results else None
 
         return {
-            "users": users,
+            "users": [{"id": user.user_id, "username": user.username} for user in users],
             "next_offset": next_offset,
             "total_matching_results": total_matching_results
         }

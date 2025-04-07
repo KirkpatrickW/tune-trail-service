@@ -166,7 +166,7 @@ async def test_search_users_by_username_success(test_session):
     assert result["next_offset"] is None  # No more results
     
     # Verify the returned users
-    returned_usernames = [user.username for user in result["users"]]
+    returned_usernames = [user["username"] for user in result["users"]]
     assert "testuser1" in returned_usernames
     assert "testuser2" in returned_usernames
     assert "testuser3" in returned_usernames
@@ -186,7 +186,7 @@ async def test_search_users_by_username_success(test_session):
     assert result["next_offset"] is None  # No more results
     
     # Verify the returned users
-    returned_usernames = [user.username for user in result["users"]]
+    returned_usernames = [user["username"] for user in result["users"]]
     assert "otheruser1" in returned_usernames
     assert "otheruser2" in returned_usernames
     
@@ -288,7 +288,7 @@ async def test_search_users_by_username_partial_match(test_session):
     result = await service.search_users_by_username(test_session, "123")
     
     assert result["total_matching_results"] == 3  # test123, 123test, testuser123
-    assert len(result["users"]) == 3 
+    assert len(result["users"]) == 3
 
 @pytest.mark.asyncio
 async def test_delete_user_by_user_id_success(test_session):
