@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy import select
+from fastapi import HTTPException
 
 from app.models.postgresql import LocalityTrack
 from app.services.postgresql.locality_track_service import LocalityTrackService
@@ -164,4 +165,53 @@ async def test_add_track_to_locality_non_existent_user(test_session):
     # Test adding track with non-existent user
     with pytest.raises(Exception) as exc_info:
         await service.add_track_to_locality(test_session, locality.locality_id, track.track_id, 999)
-    assert "User not found" in str(exc_info.value) 
+    assert "User not found" in str(exc_info.value)
+
+@pytest.mark.asyncio
+async def test_delete_locality_track_by_locality_track_id(test_session):
+    service = LocalityTrackService()
+    user_service = UserService()
+    locality_service = LocalityService()
+    track_service = TrackService()
+    
+    # Create test data
+    user = await user_service.add_new_user(test_session, is_oauth_account=False)
+    locality = await locality_service.add_new_locality(test_session, locality_id=1, name="Test Locality", latitude=0.0, longitude=0.0)
+    
+    # Create test track
+    track = await track_service.add_new_track(
+        test_session,
+        isrc="test123",
+        spotify_id="spotify123",
+        deezer_id=123456,
+        name="Test Track",
+        artists=["Test Artist"],
+        cover_large="large.jpg"
+    )
+    
+    # Add track to locality
+    locality_track = LocalityTrack(
+        locality_id=locality.locality_id,
+        track_id=track.track_id,
+        user_id=user.user_id,
+        total_votes=0
+    )
+    test_session.add(locality_track)
+    await test_session.flush()
+    
+    # Test deleting the locality track
+    await service.delete_locality_track_by_locality_track_id(test_session, locality_track.locality_track_id)
+    
+    # Verify track was deleted from database
+    result = await test_session.execute(
+        select(LocalityTrack)
+        .where(LocalityTrack.locality_track_id == locality_track.locality_track_id)
+    )
+    deleted_track = result.scalar_one_or_none()
+    assert deleted_track is None
+    
+    # Test deleting non-existent locality track
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_locality_track_by_locality_track_id(test_session, 999)
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "Track in Locality not found" 

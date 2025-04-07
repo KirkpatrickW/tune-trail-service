@@ -698,3 +698,37 @@ async def test_get_tracks_for_localities_no_localities_in_radius(test_client, te
     # Verify empty response
     assert isinstance(data, list)
     assert len(data) == 0
+
+@pytest.mark.asyncio
+async def test_add_track_to_locality_banned_track(test_client, test_session, test_localities, test_users, mock_spotify_service, mock_deezer_service):
+    token = create_access_token(
+        user_id=test_users[0].user_id,
+        user_session_id="test_session",
+        is_admin=False,
+        spotify_access_token="test_spotify_token"
+    )
+    
+    # Create a banned track in the database
+    banned_track = Track(
+        isrc="test123",
+        spotify_id="spotify123",
+        deezer_id=123456,
+        name="Banned Track",
+        artists=["Banned Artist"],
+        cover_large="large.jpg",
+        is_banned=True
+    )
+    test_session.add(banned_track)
+    await test_session.commit()
+    
+    # Mock the track service to return our banned track
+    with patch('app.utils.routes.track_utils.track_service.get_track_by_spotify_id', new_callable=AsyncMock) as mock_get_track:
+        mock_get_track.return_value = banned_track
+        
+        response = await test_client.put(
+            f"/localities/{test_localities[0].locality_id}/tracks/spotify123",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        assert response.status_code == 400
+        assert response.json()["detail"] == "This track is banned and cannot be added"

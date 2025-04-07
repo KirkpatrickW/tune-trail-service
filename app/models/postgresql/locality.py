@@ -1,5 +1,6 @@
-from sqlalchemy import Column, BigInteger, String, Float, CheckConstraint, Index, Computed, Integer
+from sqlalchemy import Column, BigInteger, String, Float, CheckConstraint, Index, Computed, Integer, TIMESTAMP
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from geoalchemy2 import Geography
 from .base import Base
 
@@ -15,8 +16,9 @@ class Locality(Base):
         Computed("ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)", persisted=True),
         comment="Generated from coordinates"
     )
-
     total_tracks = Column(Integer, nullable=False, default=0)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     tracks = relationship("LocalityTrack", back_populates="locality")
 

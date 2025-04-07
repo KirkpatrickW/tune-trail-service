@@ -1,6 +1,6 @@
 from pydantic import BaseModel, field_validator
 
-class SearchTracksParams(BaseModel):
+class SearchParams(BaseModel):
     q: str
     offset: int = 0
 

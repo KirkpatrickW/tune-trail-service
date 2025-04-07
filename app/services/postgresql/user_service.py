@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.sql import func
 
 from models.postgresql import User
 
@@ -28,6 +29,23 @@ class UserService:
 
         return user
     
+
+    async def search_users_by_username(self, session: AsyncSession, search_term: str, offset: int = 0):
+        total_stmt = select(func.count()).select_from(User).where(User.username.ilike(f"%{search_term}%"))
+        total_result = await session.execute(total_stmt)
+        total_matching_results = total_result.scalar()
+
+        stmt = select(User).where(User.username.ilike(f"%{search_term}%")).limit(20).offset(offset)
+        result = await session.execute(stmt)
+        users = result.scalars().all()
+
+        next_offset = offset + 20 if offset + 20 < total_matching_results else None
+
+        return {
+            "users": users,
+            "next_offset": next_offset,
+            "total_matching_results": total_matching_results
+        }
 
     async def add_new_user(self, session: AsyncSession, username: str = None, hashed_password: bytes = None, is_oauth_account: bool = False):
         if username:
@@ -65,3 +83,15 @@ class UserService:
         await session.refresh(user)
 
         return user
+    
+
+    async def delete_user_by_user_id(self, session: AsyncSession, user_id: int):
+        user = await self.get_user_by_user_id(session, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        await session.delete(user)
+
+        await session.flush()
+
+        return

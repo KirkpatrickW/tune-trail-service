@@ -172,3 +172,90 @@ async def test_vote_missing_auth(test_client, test_data):
     
     assert response.status_code == 403
     assert response.json()["detail"] == "Not authenticated"
+
+@pytest.mark.asyncio
+async def test_delete_locality_track_success(test_client, test_data, test_token):
+    response = await test_client.delete(
+        "/locality-tracks/1",
+        headers={"Authorization": f"Bearer {test_token}"}
+    )
+    
+    assert response.status_code == 200
+    assert response.json()["message"] == "Sucessfully deleted Track from Locality"
+
+@pytest.mark.asyncio
+async def test_delete_locality_track_unauthorized(test_client, test_data):
+    response = await test_client.delete(
+        "/locality-tracks/1"
+    )
+    
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Not authenticated"
+
+@pytest.mark.asyncio
+async def test_delete_locality_track_insufficient_permissions(test_client, test_data, test_session):
+    # Create a different user's token
+    other_user_token = create_access_token(
+        user_id=2,
+        user_session_id="test_session",
+        is_admin=False,
+        spotify_access_token="test_spotify_token"
+    )
+    
+    # Create another user
+    other_user = User(
+        user_id=2,
+        username="other_user",
+        hashed_password=None,
+        is_oauth_account=True,
+        is_admin=False
+    )
+    test_session.add(other_user)
+    await test_session.commit()
+    
+    response = await test_client.delete(
+        "/locality-tracks/1",
+        headers={"Authorization": f"Bearer {other_user_token}"}
+    )
+    
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient permissions"
+
+@pytest.mark.asyncio
+async def test_delete_locality_track_admin_success(test_client, test_data, test_session):
+    # Create an admin token
+    admin_token = create_access_token(
+        user_id=2,
+        user_session_id="test_session",
+        is_admin=True,
+        spotify_access_token="test_spotify_token"
+    )
+    
+    # Create an admin user
+    admin_user = User(
+        user_id=2,
+        username="admin_user",
+        hashed_password=None,
+        is_oauth_account=True,
+        is_admin=True
+    )
+    test_session.add(admin_user)
+    await test_session.commit()
+    
+    response = await test_client.delete(
+        "/locality-tracks/1",
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    
+    assert response.status_code == 200
+    assert response.json()["message"] == "Sucessfully deleted Track from Locality"
+
+@pytest.mark.asyncio
+async def test_delete_locality_track_nonexistent(test_client, test_data, test_token):
+    response = await test_client.delete(
+        "/locality-tracks/999",
+        headers={"Authorization": f"Bearer {test_token}"}
+    )
+    
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Track in Locality not found"
