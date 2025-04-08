@@ -36,7 +36,6 @@ async def search_tracks(request: Request, search_params: SearchParams = Depends(
         banned_tracks = await track_service.get_all_banned_tracks(session)
         banned_spotify_ids = {track.spotify_id for track in banned_tracks}
 
-
     spotify_response = (await spotify_service.search_tracks(search_params.q, offset, search_limit)).get("tracks", {})
     tracks = spotify_response.get("items", [])
 

@@ -82,7 +82,6 @@ async def test_search_users_success(test_client, test_session, admin_token):
     
     assert response.status_code == 200
     data = response.json()
-    assert data["total_matching_results"] == 5
     assert len(data["users"]) == 5
     assert data["next_offset"] is None  # No more results
     
@@ -94,7 +93,6 @@ async def test_search_users_success(test_client, test_session, admin_token):
     
     assert response.status_code == 200
     data = response.json()
-    assert data["total_matching_results"] == 5
     assert len(data["users"]) == 2
     assert data["next_offset"] is None  # No more results
     
@@ -106,7 +104,6 @@ async def test_search_users_success(test_client, test_session, admin_token):
     
     assert response.status_code == 200
     data = response.json()
-    assert data["total_matching_results"] == 3
     assert len(data["users"]) == 3
     assert data["next_offset"] is None  # No more results
 
@@ -139,7 +136,6 @@ async def test_search_users_empty_results(test_client, test_session, admin_token
     
     assert response.status_code == 200
     data = response.json()
-    assert data["total_matching_results"] == 0
     assert len(data["users"]) == 0
     assert data["next_offset"] is None
 

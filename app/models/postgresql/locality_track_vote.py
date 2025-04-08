@@ -12,5 +12,5 @@ class LocalityTrackVote(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    locality_track = relationship("LocalityTrack", back_populates="locality_track_votes")
-    user = relationship("User", back_populates="locality_track_votes")
+    locality_track = relationship("LocalityTrack", back_populates="locality_track_votes", passive_deletes=True)
+    user = relationship("User", back_populates="locality_track_votes", passive_deletes=True)

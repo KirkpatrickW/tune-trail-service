@@ -26,7 +26,6 @@ user_session_service = UserSessionService()
     Depends(validate_admin)
 ])
 @handle_client_disconnect
-@cache(expire=300)
 async def search_users(request: Request, search_params: SearchParams = Depends(), session: AsyncSession = Depends(postgresql_client.get_session)):
     async with session.begin():
         users = await user_service.search_users_by_username(session, search_params.q, search_params.offset)

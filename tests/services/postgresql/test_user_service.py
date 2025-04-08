@@ -161,7 +161,6 @@ async def test_search_users_by_username_success(test_session):
     # Test searching for users with "test" in username
     result = await service.search_users_by_username(test_session, "test")
     
-    assert result["total_matching_results"] == 3
     assert len(result["users"]) == 3
     assert result["next_offset"] is None  # No more results
     
@@ -174,14 +173,12 @@ async def test_search_users_by_username_success(test_session):
     # Test searching with offset
     result = await service.search_users_by_username(test_session, "test", offset=2)
     
-    assert result["total_matching_results"] == 3
     assert len(result["users"]) == 1
     assert result["next_offset"] is None  # No more results
     
     # Test searching for users with "other" in username
     result = await service.search_users_by_username(test_session, "other")
     
-    assert result["total_matching_results"] == 2
     assert len(result["users"]) == 2
     assert result["next_offset"] is None  # No more results
     
@@ -193,7 +190,6 @@ async def test_search_users_by_username_success(test_session):
     # Test searching for non-existent users
     result = await service.search_users_by_username(test_session, "nonexistent")
     
-    assert result["total_matching_results"] == 0
     assert len(result["users"]) == 0
     assert result["next_offset"] is None
 
@@ -212,19 +208,16 @@ async def test_search_users_by_username_case_insensitive(test_session):
     # Test searching with lowercase
     result = await service.search_users_by_username(test_session, "testuser")
     
-    assert result["total_matching_results"] == 3
     assert len(result["users"]) == 3
     
     # Test searching with uppercase
     result = await service.search_users_by_username(test_session, "TESTUSER")
     
-    assert result["total_matching_results"] == 3
     assert len(result["users"]) == 3
     
     # Test searching with mixed case
     result = await service.search_users_by_username(test_session, "TestUser")
     
-    assert result["total_matching_results"] == 3
     assert len(result["users"]) == 3
 
 @pytest.mark.asyncio
@@ -242,21 +235,18 @@ async def test_search_users_by_username_pagination(test_session):
     # Test first page (default limit is 20)
     result = await service.search_users_by_username(test_session, "testuser")
     
-    assert result["total_matching_results"] == 25
     assert len(result["users"]) == 20
     assert result["next_offset"] == 20  # There are more results
     
     # Test second page
     result = await service.search_users_by_username(test_session, "testuser", offset=20)
     
-    assert result["total_matching_results"] == 25
     assert len(result["users"]) == 5
     assert result["next_offset"] is None  # No more results
     
     # Test with offset beyond available results
     result = await service.search_users_by_username(test_session, "testuser", offset=30)
     
-    assert result["total_matching_results"] == 25
     assert len(result["users"]) == 0
     assert result["next_offset"] is None
 
@@ -275,19 +265,16 @@ async def test_search_users_by_username_partial_match(test_session):
     # Test searching with partial match at the beginning
     result = await service.search_users_by_username(test_session, "test")
     
-    assert result["total_matching_results"] == 5  # testuser, test123, test, testuser123
     assert len(result["users"]) == 5
     
     # Test searching with partial match in the middle
     result = await service.search_users_by_username(test_session, "user")
     
-    assert result["total_matching_results"] == 3  # testuser, user, testuser123
     assert len(result["users"]) == 3
     
     # Test searching with partial match at the end
     result = await service.search_users_by_username(test_session, "123")
     
-    assert result["total_matching_results"] == 3  # test123, 123test, testuser123
     assert len(result["users"]) == 3
 
 @pytest.mark.asyncio

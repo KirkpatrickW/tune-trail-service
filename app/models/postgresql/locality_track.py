@@ -16,5 +16,5 @@ class LocalityTrack(Base):
 
     locality = relationship("Locality", back_populates="tracks")
     track = relationship("Track", back_populates="localities")
-    user = relationship("User", back_populates="locality_tracks")
-    locality_track_votes = relationship("LocalityTrackVote", back_populates="locality_track")
+    user = relationship("User", back_populates="locality_tracks", passive_deletes=True)
+    locality_track_votes = relationship("LocalityTrackVote", back_populates="locality_track", passive_deletes=True)

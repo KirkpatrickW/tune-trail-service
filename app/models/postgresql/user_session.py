@@ -13,4 +13,4 @@ class UserSession(Base):
     expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
     is_invalidated = Column(Boolean, nullable=False, default=False)
 
-    user = relationship("User", back_populates="user_sessions")
+    user = relationship("User", back_populates="user_sessions", passive_deletes=True)

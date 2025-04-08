@@ -15,9 +15,9 @@ class User(Base):
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     user_spotify_oauth_account = relationship("UserSpotifyOauthAccount", back_populates="user", uselist=False)
-    user_sessions = relationship("UserSession", back_populates="user")
-    locality_tracks = relationship("LocalityTrack", back_populates="user")
-    locality_track_votes = relationship("LocalityTrackVote", back_populates="user")
+    user_sessions = relationship("UserSession", back_populates="user", passive_deletes=True)
+    locality_tracks = relationship("LocalityTrack", back_populates="user", passive_deletes=True)
+    locality_track_votes = relationship("LocalityTrackVote", back_populates="user", passive_deletes=True)
 
     __table_args__ = (
         UniqueConstraint('username', name='unique_identifiers'),
