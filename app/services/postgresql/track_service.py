@@ -97,6 +97,16 @@ class TrackService:
             raise HTTPException(status_code=404, detail="Track not found")
 
         if track.is_banned == False:
+            # Find all LocalityTrack records associated with this track
+            stmt = select(LocalityTrack).where(LocalityTrack.track_id == track_id)
+            result = await session.execute(stmt)
+            locality_tracks = result.scalars().all()
+            
+            # Delete all associated LocalityTrack records
+            for locality_track in locality_tracks:
+                await session.delete(locality_track)
+            
+            # Mark the track as banned
             track.is_banned = True
 
         await session.flush()

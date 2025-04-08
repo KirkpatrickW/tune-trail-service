@@ -273,6 +273,12 @@ async def test_get_all_banned_tracks(test_session):
 @pytest.mark.asyncio
 async def test_ban_track_by_track_id(test_session):
     service = TrackService()
+    user_service = UserService()
+    locality_service = LocalityService()
+    
+    # Create test data
+    user = await user_service.add_new_user(test_session, is_oauth_account=False)
+    locality = await locality_service.add_new_locality(test_session, locality_id=1, name="Test Locality", latitude=0.0, longitude=0.0)
     
     # Create a test track
     track = await service.add_new_track(
@@ -285,11 +291,33 @@ async def test_ban_track_by_track_id(test_session):
         cover_large="large.jpg"
     )
     
+    # Add track to locality
+    locality_track = LocalityTrack(
+        locality_id=locality.locality_id,
+        track_id=track.track_id,
+        user_id=user.user_id,
+        total_votes=0
+    )
+    test_session.add(locality_track)
+    await test_session.flush()
+    
+    # Verify LocalityTrack was created
+    stmt = select(LocalityTrack).where(LocalityTrack.track_id == track.track_id)
+    result = await test_session.execute(stmt)
+    locality_tracks = result.scalars().all()
+    assert len(locality_tracks) == 1
+    
     # Ban the track
     banned_track = await service.ban_track_by_track_id(test_session, track.track_id)
     
     # Verify the track is banned
     assert banned_track.is_banned == True
+    
+    # Verify all associated LocalityTrack records were deleted
+    stmt = select(LocalityTrack).where(LocalityTrack.track_id == track.track_id)
+    result = await test_session.execute(stmt)
+    locality_tracks = result.scalars().all()
+    assert len(locality_tracks) == 0
     
     # Try to ban a non-existent track
     with pytest.raises(HTTPException) as exc_info:
