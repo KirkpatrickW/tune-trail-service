@@ -423,3 +423,76 @@ async def test_search_tracks_empty_response(test_client, mock_spotify_service, m
     assert data["total_matching_results"] == 0
     assert len(data["results"]) == 0
     assert data["next_offset"] == 20
+
+@pytest.mark.asyncio
+async def test_search_tracks_skip_banned_tracks(test_client, test_session, mock_spotify_service, mock_deezer_service):
+    # Create a banned track in the database
+    banned_track = Track(
+        isrc="TEST12345678",
+        spotify_id="spotify_track_1",
+        deezer_id=123456789,
+        name="Banned Track",
+        artists=["Banned Artist"],
+        cover_small="http://test.com/small",
+        cover_medium="http://test.com/medium",
+        cover_large="http://test.com/large",
+        is_banned=True
+    )
+    test_session.add(banned_track)
+    await test_session.commit()
+    
+    # Mock Spotify search response with a banned track and a regular track
+    mock_spotify_service.search_tracks.return_value = {
+        "tracks": {
+            "items": [
+                {
+                    "id": "spotify_track_1",  # This is the banned track
+                    "external_ids": {"isrc": "TEST12345678"},
+                    "name": "Banned Track",
+                    "artists": [{"name": "Banned Artist"}],
+                    "album": {
+                        "images": [
+                            {"url": "http://test.com/large"},
+                            {"url": "http://test.com/medium"},
+                            {"url": "http://test.com/small"}
+                        ]
+                    }
+                },
+                {
+                    "id": "spotify_track_2",  # This is a regular track
+                    "external_ids": {"isrc": "TEST87654321"},
+                    "name": "Regular Track",
+                    "artists": [{"name": "Regular Artist"}],
+                    "album": {
+                        "images": [
+                            {"url": "http://test.com/large2"},
+                            {"url": "http://test.com/medium2"},
+                            {"url": "http://test.com/small2"}
+                        ]
+                    }
+                }
+            ],
+            "total": 2
+        }
+    }
+    
+    # Mock Deezer service to return IDs
+    mock_deezer_service.fetch_deezer_id_by_isrc.return_value = 123456789
+    
+    response = await test_client.get("/tracks/search?q=test&offset=0")
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_matching_results"] == 2
+    assert len(data["results"]) == 1  # Only one track should be returned (the non-banned one)
+    assert data["next_offset"] == 21  # Offset should be incremented for the skipped banned track
+    
+    # Verify the returned track is the non-banned one
+    assert data["results"][0]["spotify_id"] == "spotify_track_2"
+    assert data["results"][0]["deezer_id"] == 123456789
+    assert data["results"][0]["isrc"] == "TEST87654321"
+    assert data["results"][0]["name"] == "Regular Track"
+    assert data["results"][0]["artists"] == ["Regular Artist"]
+    assert data["results"][0]["cover"]["large"] == "http://test.com/large2"
+    assert data["results"][0]["cover"]["medium"] == "http://test.com/medium2"
+    assert data["results"][0]["cover"]["small"] == "http://test.com/small2"

@@ -28,9 +28,14 @@ deezer_service = DeezerService()
 @tracks_router.get("/search")
 @handle_client_disconnect
 @cache(expire=300)
-async def search_tracks(request: Request, search_params: SearchParams = Depends()):
+async def search_tracks(request: Request, search_params: SearchParams = Depends(), session: AsyncSession = Depends(postgresql_client.get_session)):
     search_limit = 20
     offset = search_params.offset
+
+    async with session.begin():
+        banned_tracks = await track_service.get_all_banned_tracks(session)
+        banned_spotify_ids = {track.spotify_id for track in banned_tracks}
+
 
     spotify_response = (await spotify_service.search_tracks(search_params.q, offset, search_limit)).get("tracks", {})
     tracks = spotify_response.get("items", [])
@@ -39,6 +44,11 @@ async def search_tracks(request: Request, search_params: SearchParams = Depends(
     spotify_offset = 0
     
     for track in tracks:
+        spotify_id = track.get("id")
+        if spotify_id in banned_spotify_ids:
+            spotify_offset += 1
+            continue
+            
         isrc = track.get("external_ids", {}).get("isrc")
         if not isrc:
             spotify_offset += 1
@@ -52,7 +62,7 @@ async def search_tracks(request: Request, search_params: SearchParams = Depends(
 
         covers = track.get("album", {}).get("images", [])
         data.append({
-            "spotify_id": track.get("id"),
+            "spotify_id": spotify_id,
             "deezer_id": deezer_id,
             "isrc": isrc,
             "name": track.get("name"),
