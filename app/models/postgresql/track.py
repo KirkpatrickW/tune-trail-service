@@ -1,5 +1,6 @@
-from sqlalchemy import BigInteger, Column, Integer, String, Text, UniqueConstraint, ARRAY, CheckConstraint, Text
+from sqlalchemy import BigInteger, Column, Integer, String, Text, UniqueConstraint, ARRAY, CheckConstraint, Text, TIMESTAMP, Boolean
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from .base import Base
 
 class Track(Base):
@@ -14,6 +15,9 @@ class Track(Base):
     cover_small = Column(Text)
     cover_medium = Column(Text)
     cover_large = Column(Text, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    is_banned = Column(Boolean, default=False, nullable=False)
 
     localities = relationship("LocalityTrack", back_populates="track")
 

@@ -38,6 +38,14 @@ class TrackService:
         return track
     
 
+    async def get_all_banned_tracks(self, session: AsyncSession):
+        stmt = select(Track).where(Track.is_banned == True)
+        result = await session.execute(stmt)
+        banned_tracks = result.scalars().all()
+
+        return banned_tracks
+
+
     async def add_new_track(self, session: AsyncSession, isrc: str, spotify_id: str, deezer_id: int, name: str, artists: List[str], cover_large: str, cover_medium: str = None, cover_small: str = None):
         existing_track = await self.get_track_by_spotify_id(session, spotify_id)
         if existing_track:
@@ -81,3 +89,41 @@ class TrackService:
             attributed_tracks.append(track)
 
         return attributed_tracks
+    
+
+    async def ban_track_by_track_id(self, session: AsyncSession, track_id: int):
+        track = await self.get_track_by_track_id(session, track_id)
+        if not track:
+            raise HTTPException(status_code=404, detail="Track not found")
+
+        if track.is_banned == False:
+            # Find all LocalityTrack records associated with this track
+            stmt = select(LocalityTrack).where(LocalityTrack.track_id == track_id)
+            result = await session.execute(stmt)
+            locality_tracks = result.scalars().all()
+            
+            # Delete all associated LocalityTrack records
+            for locality_track in locality_tracks:
+                await session.delete(locality_track)
+            
+            # Mark the track as banned
+            track.is_banned = True
+
+        await session.flush()
+        await session.refresh(track)
+
+        return track
+    
+
+    async def unban_track_by_track_id(self, session: AsyncSession, track_id: int):
+        track = await self.get_track_by_track_id(session, track_id)
+        if not track:
+            raise HTTPException(status_code=404, detail="Track not found")
+
+        if track.is_banned == True:
+            track.is_banned = False
+
+        await session.flush()
+        await session.refresh(track)
+
+        return track

@@ -230,4 +230,136 @@ async def test_get_tracks_in_locality(test_session):
     with pytest.raises(HTTPException) as exc_info:
         await service.get_tracks_in_locality(test_session, 999)
     assert exc_info.value.status_code == 404
-    assert exc_info.value.detail == "Locality not found" 
+    assert exc_info.value.detail == "Locality not found"
+
+@pytest.mark.asyncio
+async def test_get_all_banned_tracks(test_session):
+    service = TrackService()
+    
+    # Create test tracks
+    track1 = await service.add_new_track(
+        test_session,
+        isrc="test1",
+        spotify_id="spotify1",
+        deezer_id=1,
+        name="Track 1",
+        artists=["Artist 1"],
+        cover_large="large1.jpg"
+    )
+    
+    track2 = await service.add_new_track(
+        test_session,
+        isrc="test2",
+        spotify_id="spotify2",
+        deezer_id=2,
+        name="Track 2",
+        artists=["Artist 2"],
+        cover_large="large2.jpg"
+    )
+    
+    # Ban track1
+    track1.is_banned = True
+    await test_session.flush()
+    
+    # Get all banned tracks
+    banned_tracks = await service.get_all_banned_tracks(test_session)
+    
+    # Verify results
+    assert len(banned_tracks) == 1
+    assert banned_tracks[0].track_id == track1.track_id
+    assert banned_tracks[0].is_banned == True
+    assert track2.track_id not in [t.track_id for t in banned_tracks]
+
+@pytest.mark.asyncio
+async def test_ban_track_by_track_id(test_session):
+    service = TrackService()
+    user_service = UserService()
+    locality_service = LocalityService()
+    
+    # Create test data
+    user = await user_service.add_new_user(test_session, is_oauth_account=False)
+    locality = await locality_service.add_new_locality(test_session, locality_id=1, name="Test Locality", latitude=0.0, longitude=0.0)
+    
+    # Create a test track
+    track = await service.add_new_track(
+        test_session,
+        isrc="test123",
+        spotify_id="spotify123",
+        deezer_id=123456,
+        name="Test Track",
+        artists=["Test Artist"],
+        cover_large="large.jpg"
+    )
+    
+    # Add track to locality
+    locality_track = LocalityTrack(
+        locality_id=locality.locality_id,
+        track_id=track.track_id,
+        user_id=user.user_id,
+        total_votes=0
+    )
+    test_session.add(locality_track)
+    await test_session.flush()
+    
+    # Verify LocalityTrack was created
+    stmt = select(LocalityTrack).where(LocalityTrack.track_id == track.track_id)
+    result = await test_session.execute(stmt)
+    locality_tracks = result.scalars().all()
+    assert len(locality_tracks) == 1
+    
+    # Ban the track
+    banned_track = await service.ban_track_by_track_id(test_session, track.track_id)
+    
+    # Verify the track is banned
+    assert banned_track.is_banned == True
+    
+    # Verify all associated LocalityTrack records were deleted
+    stmt = select(LocalityTrack).where(LocalityTrack.track_id == track.track_id)
+    result = await test_session.execute(stmt)
+    locality_tracks = result.scalars().all()
+    assert len(locality_tracks) == 0
+    
+    # Try to ban a non-existent track
+    with pytest.raises(HTTPException) as exc_info:
+        await service.ban_track_by_track_id(test_session, 999)
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "Track not found"
+    
+    # Try to ban an already banned track
+    banned_track = await service.ban_track_by_track_id(test_session, track.track_id)
+    assert banned_track.is_banned == True  # Should still be banned
+
+@pytest.mark.asyncio
+async def test_unban_track_by_track_id(test_session):
+    service = TrackService()
+    
+    # Create a test track
+    track = await service.add_new_track(
+        test_session,
+        isrc="test123",
+        spotify_id="spotify123",
+        deezer_id=123456,
+        name="Test Track",
+        artists=["Test Artist"],
+        cover_large="large.jpg"
+    )
+    
+    # Ban the track first
+    track.is_banned = True
+    await test_session.flush()
+    
+    # Unban the track
+    unbanned_track = await service.unban_track_by_track_id(test_session, track.track_id)
+    
+    # Verify the track is unbanned
+    assert unbanned_track.is_banned == False
+    
+    # Try to unban a non-existent track
+    with pytest.raises(HTTPException) as exc_info:
+        await service.unban_track_by_track_id(test_session, 999)
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "Track not found"
+    
+    # Try to unban an already unbanned track
+    unbanned_track = await service.unban_track_by_track_id(test_session, track.track_id)
+    assert unbanned_track.is_banned == False  # Should still be unbanned 

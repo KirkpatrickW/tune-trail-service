@@ -56,3 +56,15 @@ class LocalityTrackService:
             new_link = LocalityTrack(locality_id=locality_id, track_id=track_id, user_id=user_id)
             session.add(new_link)
             await session.flush()
+
+
+    async def delete_locality_track_by_locality_track_id(self, session: AsyncSession, locality_track_id: int):
+        locality_track = await self.get_locality_track_by_locality_track_id(session, locality_track_id)
+        if not locality_track:
+            raise HTTPException(status_code=404, detail="Track in Locality not found")
+        
+        await session.delete(locality_track)
+
+        await session.flush()
+
+        return
