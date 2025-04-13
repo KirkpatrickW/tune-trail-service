@@ -235,7 +235,6 @@ async def logout(session: AsyncSession = Depends(postgresql_client.get_session))
     return { "message": "Logged out successfully" }
 
 
-# TODO: This looks like it is raising a 500 somewhere
 @auth_router.put("/refresh-token")
 async def refresh_token(access_token_data: dict = Depends(decode_access_token), session: AsyncSession = Depends(postgresql_client.get_session)):
     try:
